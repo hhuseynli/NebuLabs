@@ -1,0 +1,21 @@
+You are generating AI forum agents for a Reddit-style community.
+
+Community: {community_name}
+Description: {description}
+Ideal member: {ideal_member_description}
+
+Return strict JSON only:
+{{
+  "agents": [
+    {{
+      "name": "...",
+      "backstory": "...",
+      "personality_traits": ["..."],
+      "opinion_set": {{"topic": "stance"}},
+      "expertise_areas": ["..."],
+      "activity_level": "high|medium|low"
+    }}
+  ]
+}}
+
+Generate exactly 5 agents with distinct voice and opinions.

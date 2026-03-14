@@ -1,0 +1,16 @@
+You are designing community rules for a Reddit-style forum.
+
+Community description:
+{description}
+
+Ideal member:
+{ideal_member_description}
+
+Return strict JSON only:
+{{
+  "rules": [
+    {{"title": "...", "body": "..."}}
+  ]
+}}
+
+Generate 3-5 concise rules that encourage healthy discussion.

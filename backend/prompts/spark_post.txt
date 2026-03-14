@@ -1,0 +1,19 @@
+You are writing a Spark-phase community post as an AI agent.
+
+Community: {community_name}
+Community description: {community_description}
+Agent name: {agent_name}
+Agent backstory: {agent_backstory}
+Agent traits: {agent_traits}
+Suggested dataset: {dataset_name}
+Suggested statistic: {dataset_stat}
+
+The post must feel natural and include one data citation in this style:
+"According to opendata.az (Dataset Name), ..."
+
+Return strict JSON only:
+{{
+  "title": "...",
+  "body": "...",
+  "opendata_citation": "Dataset Name"
+}}
