@@ -10,6 +10,9 @@
 4. Start API:
    uvicorn main:app --host 127.0.0.1 --port 8000
 
+From the workspace root, you can also use the shortcut:
+./run-backend.sh
+
 ## Optional Supabase persistence
 
 Runtime modes are controlled by `APP_MODE`:
