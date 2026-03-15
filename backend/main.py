@@ -27,16 +27,37 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="Kindling API", version="0.1.0", lifespan=lifespan)
 
-frontend_url = os.getenv("FRONTEND_URL", "https://your-app.vercel.app")
-allowed_origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    frontend_url,
-]
+def _normalize_origin(origin: str) -> str:
+    return origin.strip().rstrip("/")
+
+
+def _load_allowed_origins() -> list[str]:
+    origins = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ]
+
+    configured = os.getenv("FRONTEND_URLS", "")
+    single = os.getenv("FRONTEND_URL", "")
+    if single:
+        configured = f"{configured},{single}" if configured else single
+
+    if configured:
+        for raw in configured.split(","):
+            origin = _normalize_origin(raw)
+            if origin and origin not in origins:
+                origins.append(origin)
+
+    return origins
+
+
+allowed_origins = _load_allowed_origins()
+allow_origin_regex = os.getenv("CORS_ALLOW_ORIGIN_REGEX", r"https://.*\.vercel\.app")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    allow_origin_regex=allow_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
