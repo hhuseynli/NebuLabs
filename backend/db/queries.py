@@ -707,10 +707,18 @@ def recompute_human_ratio(*, community_id: str, last_n: int = 50) -> float:
         human_count = len([p for p in posts if p.is_human])
         ratio = human_count / len(posts)
 
-    community = store.communities_by_id[community_id]
-    community.human_activity_ratio = round(ratio, 2)
+    bounded_ratio = round(ratio, 2)
+
+    # In Supabase mode, a community may exist remotely without being present in local store.
+    community = store.communities_by_id.get(community_id)
+    if not community:
+        community = get_community_by_id(community_id)
+    if not community:
+        return bounded_ratio
+
+    community.human_activity_ratio = bounded_ratio
     _sb_upsert("communities", _community_to_payload(community))
-    return community.human_activity_ratio
+    return bounded_ratio
 
 
 def set_phase(*, community_id: str, phase: str) -> None:
@@ -1003,6 +1011,48 @@ def get_all_active_communities() -> list[dict[str, str]]:
             except Exception:
                 pass
     return [{"id": c.id, "slug": c.slug} for c in communities]
+
+
+def list_communities(limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
+    client = get_supabase_client()
+    if client:
+        try:
+            rows = (
+                client.table("communities")
+                .select("id,name,slug,description,member_count,created_at")
+                .order("created_at", desc=True)
+                .range(offset, offset + limit - 1)
+                .execute()
+                .data
+            )
+            return [
+                {
+                    "id": row.get("id"),
+                    "name": row.get("name"),
+                    "slug": row.get("slug"),
+                    "description": row.get("description") or "",
+                    "member_count": int(row.get("member_count") or 0),
+                    "created_at": row.get("created_at"),
+                }
+                for row in rows
+                if row.get("id") and row.get("slug")
+            ]
+        except Exception:
+            pass
+
+    communities = sorted(store.communities_by_id.values(), key=lambda c: c.created_at, reverse=True)
+    selected = communities[offset : offset + limit]
+    return [
+        {
+            "id": community.id,
+            "name": community.name,
+            "slug": community.slug,
+            "description": community.description,
+            "member_count": community.member_count,
+            "created_at": community.created_at,
+        }
+        for community in selected
+    ]
 
 
 def get_cached_sentiment(community_id: str, max_age_minutes: int = 5) -> dict[str, Any] | None:
