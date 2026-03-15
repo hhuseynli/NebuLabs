@@ -13,7 +13,7 @@ def _configured() -> bool:
     return bool(os.getenv("GEMINI_API_KEY")) and genai is not None
 
 
-async def generate_text(prompt: str, model: str = "gemini-2.0-flash") -> str:
+async def generate_text(prompt: str, model: str = "gemini-2.5-flash") -> str:
     if not _configured():
         return ""
 
@@ -40,7 +40,7 @@ async def generate_text(prompt: str, model: str = "gemini-2.0-flash") -> str:
     return ""
 
 
-async def generate_json(prompt: str, fallback: dict, model: str = "gemini-2.0-flash") -> dict:
+async def generate_json(prompt: str, fallback: dict, model: str = "gemini-2.5-flash") -> dict:
     text = await generate_text(prompt, model=model)
     if not text:
         return fallback
