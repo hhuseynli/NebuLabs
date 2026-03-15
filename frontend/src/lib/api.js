@@ -4,6 +4,21 @@ function authHeaders(token) {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function getValidationMessage(detail) {
+  if (!Array.isArray(detail) || detail.length === 0) {
+    return null;
+  }
+
+  const first = detail[0];
+  if (!first || typeof first !== "object") {
+    return null;
+  }
+
+  const path = Array.isArray(first.loc) ? first.loc.slice(1).join(".") : "field";
+  const message = typeof first.msg === "string" ? first.msg : "Invalid input";
+  return `${path}: ${message}`;
+}
+
 async function request(path, { method = "GET", token, body } = {}) {
   const response = await fetch(`${API_URL}${path}`, {
     method,
@@ -16,7 +31,13 @@ async function request(path, { method = "GET", token, body } = {}) {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.detail || data.error?.message || "Request failed");
+    if (response.status === 401) {
+      localStorage.removeItem("kindling_user");
+      localStorage.removeItem("kindling_token");
+    }
+
+    const validationMessage = getValidationMessage(data.detail);
+    throw new Error(validationMessage || data.error?.message || data.detail || "Request failed");
   }
 
   return data;

@@ -10,6 +10,26 @@ export default function SignupPage() {
   const [form, setForm] = useState({ email: "", username: "", password: "" });
   const [error, setError] = useState("");
 
+  function validateSignup(values) {
+    const email = values.email.trim();
+    const username = values.username.trim();
+    const password = values.password;
+
+    if (!email || !username || !password) {
+      return "All fields are required.";
+    }
+    if (username.length < 3) {
+      return "Username must be at least 3 characters.";
+    }
+    if (username.length > 32) {
+      return "Username must be at most 32 characters.";
+    }
+    if (password.length < 8) {
+      return "Password must be at least 8 characters.";
+    }
+    return "";
+  }
+
   return (
     <div className="min-h-screen bg-canvas">
       <Navbar />
@@ -21,8 +41,18 @@ export default function SignupPage() {
             onSubmit={async (e) => {
               e.preventDefault();
               setError("");
+              const validationError = validateSignup(form);
+              if (validationError) {
+                setError(validationError);
+                return;
+              }
+
               try {
-                await signup(form);
+                await signup({
+                  email: form.email.trim(),
+                  username: form.username.trim(),
+                  password: form.password,
+                });
                 navigate("/home");
               } catch (err) {
                 setError(err.message);

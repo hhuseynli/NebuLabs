@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -60,6 +61,19 @@ async def http_exception_handler(_: Request, exc: HTTPException):
         message = detail if isinstance(detail, str) else "Request failed"
         payload = {"error": {"code": code, "message": message}}
     return JSONResponse(status_code=exc.status_code, content=payload)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(_: Request, exc: RequestValidationError):
+    errors = exc.errors()
+    first = errors[0] if errors else {}
+    loc = first.get("loc") if isinstance(first, dict) else []
+    field = ".".join(str(x) for x in loc[1:]) if isinstance(loc, (list, tuple)) and len(loc) > 1 else "field"
+    message = first.get("msg") if isinstance(first, dict) and first.get("msg") else "Invalid request payload"
+    return JSONResponse(
+        status_code=422,
+        content={"error": {"code": "VALIDATION_ERROR", "message": f"{field}: {message}"}},
+    )
 
 
 @app.exception_handler(Exception)
