@@ -6,6 +6,9 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.extension import _rate_limit_exceeded_handler
 
 from routers.auth import router as auth_router
 from routers.communities import router as communities_router
@@ -16,6 +19,7 @@ from routers.posts import router as posts_router
 from routers.sentiment import router as sentiment_router
 from routers.users import router as users_router
 from scheduler import start_scheduler
+from limiter import limiter
 
 load_dotenv()
 
@@ -27,6 +31,9 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Kindling API", version="0.1.0", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 def _normalize_origin(origin: str) -> str:
     return origin.strip().rstrip("/")
@@ -60,6 +67,7 @@ allow_origin_regex = os.getenv(
 
 app.add_middleware(
     CORSMiddleware,
+    # Locked to local dev origins + configured frontend URLs + Vercel previews.
     allow_origins=allowed_origins,
     allow_origin_regex=allow_origin_regex,
     allow_credentials=True,

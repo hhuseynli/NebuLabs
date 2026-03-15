@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from db import queries
+from limiter import limiter
 from models.community import PledgeCreate
 from routers.deps import get_current_user_id
 from services import fundraiser_service
@@ -9,7 +10,8 @@ router = APIRouter(tags=["fundraiser"])
 
 
 @router.post("/communities/{slug}/fundraiser/scan")
-async def scan_fundraiser(slug: str, user_id: str = Depends(get_current_user_id)):
+@limiter.limit("6/minute")
+async def scan_fundraiser(request: Request, slug: str, user_id: str = Depends(get_current_user_id)):
     community = queries.get_community_by_slug(slug)
     if not community:
         raise HTTPException(status_code=404, detail={"code": "COMMUNITY_NOT_FOUND", "message": "No community with that slug"})

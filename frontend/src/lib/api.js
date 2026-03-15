@@ -24,6 +24,37 @@ function getValidationMessage(detail) {
   return `${path}: ${message}`;
 }
 
+function normalizeErrorMessage(data) {
+  if (!data || typeof data !== "object") {
+    return "Request failed";
+  }
+
+  if (typeof data.error?.message === "string" && data.error.message.trim()) {
+    return data.error.message;
+  }
+
+  if (typeof data.detail === "string" && data.detail.trim()) {
+    return data.detail;
+  }
+
+  if (Array.isArray(data.detail) && data.detail.length > 0) {
+    return getValidationMessage(data.detail) || "Request failed";
+  }
+
+  if (data.detail && typeof data.detail === "object") {
+    if (typeof data.detail.message === "string" && data.detail.message.trim()) {
+      return data.detail.message;
+    }
+    try {
+      return JSON.stringify(data.detail);
+    } catch {
+      return "Request failed";
+    }
+  }
+
+  return "Request failed";
+}
+
 async function request(path, { method = "GET", token, body } = {}) {
   const response = await fetch(`${API_URL}${path}`, {
     method,
@@ -44,8 +75,7 @@ async function request(path, { method = "GET", token, body } = {}) {
       }
     }
 
-    const validationMessage = getValidationMessage(data.detail);
-    throw new Error(validationMessage || data.error?.message || data.detail || "Request failed");
+    throw new Error(normalizeErrorMessage(data));
   }
 
   return data;

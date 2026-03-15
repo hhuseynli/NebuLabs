@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+from datetime import datetime, timedelta, timezone
 
 from db import queries
 from services import groq_service
 
 PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
+FAQ_CACHE_TTL_SECONDS = 300
+_FAQ_CACHE: dict[tuple[str, str], tuple[dict, datetime]] = {}
 
 
 def _read_prompt(name: str) -> str:
@@ -22,6 +25,14 @@ def _find_source_post_id(posts: list, question: str) -> str | None:
 
 
 async def answer_question(community_id: str, question: str) -> dict:
+    cache_key = (community_id, question.strip().lower())
+    now = datetime.now(timezone.utc)
+    cached = _FAQ_CACHE.get(cache_key)
+    if cached:
+        payload, ts = cached
+        if now - ts <= timedelta(seconds=FAQ_CACHE_TTL_SECONDS):
+            return payload
+
     posts = queries.list_community_posts(community_id=community_id, limit=200, offset=0)
     snippets: list[str] = []
     for post in posts[:80]:
@@ -59,9 +70,11 @@ async def answer_question(community_id: str, question: str) -> dict:
     if bounded_confidence < 0.4:
         return fallback_answer
 
-    return {
+    response = {
         "answer": answer,
         "source_post_id": response_source,
         "source_excerpt": response_excerpt,
         "confidence": bounded_confidence,
     }
+    _FAQ_CACHE[cache_key] = (response, now)
+    return response
