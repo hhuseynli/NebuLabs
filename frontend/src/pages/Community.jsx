@@ -20,20 +20,8 @@ export default function CommunityPage() {
   const { posts, loading, createPost, votePost } = usePosts(slug, sort, token);
 
   useEffect(() => {
-    if (!slug) {
-      console.log("[Community] No slug in params");
-      return;
-    }
-    console.log(`[Community] Mounted/Updated. Fetching community: ${slug}`);
-    api.getCommunity(slug)
-      .then((data) => {
-        console.log("[Community] Community fetched:", data.slug);
-        setCommunity(data);
-      })
-      .catch((err) => {
-        console.error("[Community] Failed to fetch community:", err.message);
-        setCommunity(null);
-      });
+    if (!slug) return;
+    api.getCommunity(slug).then(setCommunity).catch(() => setCommunity(null));
   }, [slug]);
 
   async function handleVote(postId, value) {
@@ -51,12 +39,12 @@ export default function CommunityPage() {
   return (
     <div className="min-h-screen bg-canvas">
       <Navbar />
-      <main className="mx-auto max-w-6xl px-4 py-8">
+      <main className="page-enter mx-auto max-w-6xl px-4 py-8">
         <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
           <section>
-            <div className="mb-4 rounded-2xl border border-ember-100 bg-white p-5">
-              <h1 className="font-display text-3xl text-slateink">r/{community?.slug || slug}</h1>
-              <p className="mt-1 text-sm text-slate-600">{community?.description || "Loading..."}</p>
+            <div className="glass-panel mb-4 p-5">
+              <h1 className="font-display text-3xl text-[#10242b]">r/{community?.slug || slug}</h1>
+              <p className="mt-1 text-sm text-[#45606a]">{community?.description || "Loading..."}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {[
                   ["posts", "Posts"],
@@ -64,7 +52,7 @@ export default function CommunityPage() {
                 ].map(([key, label]) => (
                   <button
                     key={key}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold ${tab === key ? "bg-slateink text-white" : "bg-slate-100 text-slate-600"}`}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold ${tab === key ? "bg-[#10242b] text-white" : "bg-[#e8f2f4] text-[#34505a]"}`}
                     onClick={() => setTab(key)}
                   >
                     {label}
@@ -81,7 +69,7 @@ export default function CommunityPage() {
                 ].map(([key, label]) => (
                   <button
                     key={key}
-                    className={`rounded-full px-3 py-1.5 text-xs font-semibold ${sort === key ? "bg-ember-500 text-white" : "bg-slate-100 text-slate-600"}`}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold ${sort === key ? "bg-[#0f8a7b] text-white" : "bg-[#edf4f6] text-[#45606a]"}`}
                     onClick={() => setSort(key)}
                   >
                     {label}
@@ -92,7 +80,7 @@ export default function CommunityPage() {
             </div>
 
             {tab === "posts" && user && (
-              <form onSubmit={submitPost} className="mb-6 rounded-2xl border border-ember-100 bg-white p-4">
+              <form onSubmit={submitPost} className="glass-panel mb-6 p-4">
                 <input className="input mb-2" placeholder="Post title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
                 <textarea className="input mb-2 min-h-20" placeholder="Share something" value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
                 <input className="input mb-3" placeholder="Flair (optional)" value={form.flair} onChange={(e) => setForm({ ...form, flair: e.target.value })} />
@@ -102,7 +90,7 @@ export default function CommunityPage() {
 
             {tab === "posts" && (
               <>
-                {loading && <p className="text-sm text-slate-500">Loading posts...</p>}
+                {loading && <p className="text-sm text-[#45606a]">Loading posts...</p>}
                 {posts.map((post) => (
                   post.agent_type === "fundraiser" ? (
                     <FundraiserPost key={post.id} post={post} token={token} />
@@ -117,9 +105,9 @@ export default function CommunityPage() {
           </section>
 
           <aside className="space-y-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Rules</h2>
-              <ul className="mt-3 space-y-2 text-sm text-slate-700">
+            <div className="glass-panel p-4">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-[#56717a]">Rules</h2>
+              <ul className="mt-3 space-y-2 text-sm text-[#1d3740]">
                 {(community?.rules || []).map((rule) => (
                   <li key={rule.title}>
                     <p className="font-semibold">{rule.title}</p>
@@ -128,7 +116,7 @@ export default function CommunityPage() {
                 ))}
               </ul>
             </div>
-            <Link to={`/r/${slug}/dashboard`} className="block rounded-2xl bg-slateink px-4 py-3 text-center text-sm font-semibold text-white">Open Organizer Dashboard</Link>
+            <Link to={`/r/${slug}/dashboard`} className="block rounded-2xl bg-[#10242b] px-4 py-3 text-center text-sm font-semibold text-white">Open Organizer Dashboard</Link>
           </aside>
         </div>
       </main>

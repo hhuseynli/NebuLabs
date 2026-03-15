@@ -40,50 +40,50 @@ export default function FundraiserPost({ post, token }) {
   }
 
   return (
-    <article className="mb-4 overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-sm">
-      <div className="bg-emerald-100 px-4 py-2 text-xs font-semibold text-emerald-800">🎯 Community Goal</div>
+    <article className="mb-4 overflow-hidden rounded-2xl border border-[#b8ddd6] bg-white/90 shadow-sm">
+      <div className="bg-[#d8efe9] px-4 py-2 text-xs font-semibold text-[#0f5e55]">🎯 Community Goal</div>
       <div className="p-4">
-        <h3 className="text-xl font-semibold text-slateink">{post.title}</h3>
-        <p className="mt-2 text-sm leading-6 text-slate-700">{post.body}</p>
+        <h3 className="text-xl font-semibold text-[#10242b]">{post.title}</h3>
+        <p className="mt-2 text-sm leading-6 text-[#2a434c]">{post.body}</p>
 
-        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Goal</p>
-          <p className="mt-1 text-lg font-semibold text-slateink">AZN {goalAmount || post.fundraiser_meta?.goal_amount || 0}</p>
+        <div className="mt-4 rounded-xl border border-[#c9e5df] bg-[#f2faf8] p-3">
+          <p className="text-xs uppercase tracking-wide text-[#56717a]">Goal</p>
+          <p className="mt-1 text-lg font-semibold text-[#10242b]">AZN {goalAmount || post.fundraiser_meta?.goal_amount || 0}</p>
           <div className="mt-2 h-2 rounded-full bg-white">
-            <div className="h-2 rounded-full bg-emerald-500" style={{ width: `${progress}%` }} />
+            <div className="h-2 rounded-full bg-[#0f8a7b]" style={{ width: `${progress}%` }} />
           </div>
-          <p className="mt-2 text-xs text-slate-600">{pledgeCount} members pledged · AZN {totalPledged} committed</p>
+          <p className="mt-2 text-xs text-[#45606a]">{pledgeCount} members pledged · AZN {totalPledged} committed</p>
         </div>
 
         <div className="mt-3 flex items-center gap-3 text-sm">
           {userPledge ? (
             <>
-              <span className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-700">✓ Pledged</span>
-              <button className="text-ember-700 underline" onClick={() => retract()} disabled={loading}>Retract</button>
+              <span className="rounded-full bg-[#d8efe9] px-3 py-1 text-[#0f5e55]">✓ Pledged</span>
+              <button className="text-[#c94f1f] underline" onClick={() => retract()} disabled={loading}>Retract</button>
             </>
           ) : (
             <button className="btn-primary" onClick={() => setOpen(true)} disabled={loading}>Pledge Support</button>
           )}
-          {deadlineText && <span className="text-xs text-slate-500">{deadlineText}</span>}
+          {deadlineText && <span className="text-xs text-[#58717a]">{deadlineText}</span>}
         </div>
 
-        <details className="mt-4 rounded-xl border border-slate-200 p-3">
-          <summary className="cursor-pointer text-sm text-slate-700">{pledgeCount} members pledged</summary>
+        <details className="mt-4 rounded-xl border border-[#d8e6e7] p-3">
+          <summary className="cursor-pointer text-sm text-[#2a434c]">{pledgeCount} members pledged</summary>
           <div className="mt-3 space-y-2 text-sm">
             {pledges.map((p) => (
-              <div key={p.id} className="rounded-lg bg-slate-50 p-2">
-                <p className="font-medium text-slateink">u/{p.username}</p>
-                <p className="text-slate-600">{p.message}</p>
-                {p.amount_suggested ? <p className="text-xs text-slate-500">AZN {p.amount_suggested}</p> : null}
+              <div key={p.id} className="rounded-lg bg-[#f6fbfb] p-2">
+                <p className="font-medium text-[#10242b]">u/{p.username}</p>
+                <p className="text-[#45606a]">{p.message}</p>
+                {p.amount_suggested ? <p className="text-xs text-[#58717a]">AZN {p.amount_suggested}</p> : null}
               </div>
             ))}
           </div>
         </details>
 
-        <p className="mt-3 text-xs text-slate-500">Posted by Cultify Fundraiser Agent</p>
+        <p className="mt-3 text-xs text-[#58717a]">Posted by Cultify Fundraiser Agent</p>
 
         {open && (
-          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <div className="mt-4 rounded-xl border border-[#d8e6e7] bg-[#f6fbfb] p-3">
             <form className="space-y-2" onSubmit={submitPledge}>
               <input
                 className="input"

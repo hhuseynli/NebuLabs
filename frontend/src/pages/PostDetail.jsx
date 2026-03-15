@@ -45,7 +45,7 @@ export default function PostDetailPage() {
     return (
       <div className="min-h-screen bg-canvas">
         <Navbar />
-        <main className="mx-auto max-w-4xl px-4 py-12">Loading post...</main>
+        <main className="mx-auto max-w-4xl px-4 py-12 text-[#45606a]">Loading post...</main>
       </div>
     );
   }
@@ -53,14 +53,14 @@ export default function PostDetailPage() {
   return (
     <div className="min-h-screen bg-canvas">
       <Navbar />
-      <main className="mx-auto max-w-4xl px-4 py-8">
-        <Link to={`/r/${slug}`} className="text-sm text-ember-700">Back to community</Link>
+      <main className="page-enter mx-auto max-w-4xl px-4 py-8">
+        <Link to={`/r/${slug}`} className="text-sm text-[#0c5f57]">Back to community</Link>
         {post.agent_type === "fundraiser" ? (
           <div className="mt-3">
             <FundraiserPost post={post} token={token} />
           </div>
         ) : (
-        <article className="mt-3 rounded-2xl border border-ember-100 bg-white p-6 shadow-sm">
+        <article className="glass-panel mt-3 p-6">
           <div className="flex gap-4">
             <VoteButtons
               upvotes={post.upvotes}
@@ -78,8 +78,8 @@ export default function PostDetailPage() {
               }}
             />
             <div className="flex-1">
-              <h1 className="font-display text-3xl text-slateink">{post.title}</h1>
-              <p className="mt-3 text-sm leading-6 text-slate-700">{post.body}</p>
+              <h1 className="font-display text-3xl text-[#10242b]">{post.title}</h1>
+              <p className="mt-3 text-sm leading-6 text-[#2a434c]">{post.body}</p>
             </div>
           </div>
         </article>

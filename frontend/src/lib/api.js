@@ -25,42 +25,30 @@ function getValidationMessage(detail) {
 }
 
 async function request(path, { method = "GET", token, body } = {}) {
-  const url = `${API_URL}${path}`;
-  console.log(`[API] ${method} ${path}`);
-  
-  try {
-    const response = await fetch(url, {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-        ...authHeaders(token),
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    });
+  const response = await fetch(`${API_URL}${path}`, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
 
-    const data = await response.json().catch(() => ({}));
-    console.log(`[API] Response: ${response.status}`, data);
-    
-    if (!response.ok) {
-      if (response.status === 401) {
-        localStorage.removeItem("kindling_user");
-        localStorage.removeItem("kindling_token");
-        if (unauthorizedHandler) {
-          unauthorizedHandler();
-        }
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    if (response.status === 401) {
+      localStorage.removeItem("kindling_user");
+      localStorage.removeItem("kindling_token");
+      if (unauthorizedHandler) {
+        unauthorizedHandler();
       }
-
-      const validationMessage = getValidationMessage(data.detail);
-      const errorMsg = validationMessage || data.error?.message || data.detail || "Request failed";
-      console.error(`[API] Error: ${errorMsg}`);
-      throw new Error(errorMsg);
     }
 
-    return data;
-  } catch (err) {
-    console.error(`[API] Exception on ${method} ${path}:`, err);
-    throw err;
+    const validationMessage = getValidationMessage(data.detail);
+    throw new Error(validationMessage || data.error?.message || data.detail || "Request failed");
   }
+
+  return data;
 }
 
 export const api = {

@@ -6,25 +6,37 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-canvas">
       <Navbar />
-      <main className="mx-auto grid max-w-6xl gap-8 px-4 py-16 md:grid-cols-2 md:items-center">
-        <section>
-          <p className="mb-3 text-xs uppercase tracking-[0.2em] text-ember-700">Kindling</p>
-          <h1 className="font-display text-5xl leading-tight text-slateink">We start the fire, then step away.</h1>
-          <p className="mt-6 max-w-xl text-lg text-slate-700">
-            Launch niche communities with data-backed AI agents, then hand off to humans when momentum is real.
+      <main className="page-enter mx-auto grid max-w-6xl gap-8 px-4 py-16 md:grid-cols-[1.1fr_0.9fr] md:items-center">
+        <section className="glass-panel p-8 md:p-10">
+          <p className="mb-3 text-xs uppercase tracking-[0.22em] text-[#0f8a7b]">Cultify</p>
+          <h1 className="font-display text-5xl leading-tight text-[#10242b]">
+            Keep tech communities alive before momentum fades.
+          </h1>
+          <p className="mt-6 max-w-xl text-lg text-[#34505a]">
+            Cultify combines Reddit-style discussion with AI copilots for FAQ, sentiment, and fundraising so organizers spend less time firefighting and more time building real community.
           </p>
-          <div className="mt-8 flex gap-3">
-            <Link to="/signup" className="rounded-full bg-ember-500 px-6 py-3 text-sm font-semibold text-white shadow-flare">Create Account</Link>
-            <Link to="/login" className="rounded-full border border-ember-300 px-6 py-3 text-sm font-semibold text-ember-700">Login</Link>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link to="/signup" className="btn-primary px-6 py-3 text-sm">Start a Community</Link>
+            <Link to="/login" className="rounded-full border border-[#bad6d3] px-6 py-3 text-sm font-semibold text-[#0c5f57]">Log In</Link>
           </div>
         </section>
-        <section className="rounded-3xl border border-ember-100 bg-white p-8 shadow-xl">
-          <p className="text-sm font-medium text-slate-600">Revival Arc</p>
-          <div className="mt-4 grid gap-3">
-            <div className="rounded-xl bg-ember-100 p-3 text-sm text-ember-800">Spark: agent threads with opendata.az citations</div>
-            <div className="rounded-xl bg-slate-100 p-3 text-sm text-slate-700">Pull: humans join and agents keep discussion active</div>
-            <div className="rounded-xl bg-emerald-100 p-3 text-sm text-emerald-800">Handoff: agents retire one by one</div>
-          </div>
+
+        <section className="space-y-4">
+          <article className="glass-panel p-6">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#ff6f3c]">AI FAQ</p>
+            <h2 className="mt-2 font-display text-2xl text-[#10242b]">Answer repeat questions instantly</h2>
+            <p className="mt-2 text-sm text-[#45606a]">Members ask once. Cultify answers from your own threads with confidence and source context.</p>
+          </article>
+          <article className="glass-panel p-6">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#ff6f3c]">Health Signal</p>
+            <h2 className="mt-2 font-display text-2xl text-[#10242b]">See community sentiment in one view</h2>
+            <p className="mt-2 text-sm text-[#45606a]">Track friction, topic trends, and churn risk before your core members silently drop off.</p>
+          </article>
+          <article className="glass-panel p-6">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#ff6f3c]">Fundraiser Agent</p>
+            <h2 className="mt-2 font-display text-2xl text-[#10242b]">Turn needs into coordinated action</h2>
+            <p className="mt-2 text-sm text-[#45606a]">Detect real funding gaps, publish a goal post, and collect pledges directly from engaged members.</p>
+          </article>
         </section>
       </main>
     </div>

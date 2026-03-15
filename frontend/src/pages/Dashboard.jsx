@@ -50,9 +50,9 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-canvas">
       <Navbar />
-      <main className="mx-auto max-w-5xl px-4 py-8">
-        <h1 className="font-display text-4xl text-slateink">Organizer Dashboard</h1>
-        <p className="mt-1 text-sm text-slate-600">Track community health with sentiment insights, friction signals, and churn risk indicators.</p>
+      <main className="page-enter mx-auto max-w-5xl px-4 py-8">
+        <h1 className="font-display text-4xl text-[#10242b]">Organizer Dashboard</h1>
+        <p className="mt-1 text-sm text-[#45606a]">Track health signals, trigger fundraiser detection, and run demo seed scenarios.</p>
 
         <div className="mt-6">
           <SentimentDashboard
@@ -66,19 +66,19 @@ export default function DashboardPage() {
           />
         </div>
 
-        <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
-          <h2 className="font-display text-2xl text-slateink">Fundraiser Agent</h2>
-          <p className="mt-1 text-sm text-slate-600">Run a manual scan to detect community funding needs and create a fundraiser post.</p>
+        <section className="glass-panel mt-6 p-5">
+          <h2 className="font-display text-2xl text-[#10242b]">Fundraiser Agent</h2>
+          <p className="mt-1 text-sm text-[#45606a]">Run a manual scan to detect funding needs and publish a fundraiser post.</p>
           <button className="btn-secondary mt-3" onClick={runFundraiserScan} disabled={scanLoading}>
             {scanLoading ? "Scanning..." : "Run Fundraiser Scan"}
           </button>
           {scanError && <p className="mt-2 text-sm text-red-600">{scanError}</p>}
-          {scanResult && <p className="mt-2 text-sm text-slate-700">{scanResult.message}</p>}
+          {scanResult && <p className="mt-2 text-sm text-[#2a434c]">{scanResult.message}</p>}
         </section>
 
-        <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
-          <h2 className="font-display text-2xl text-slateink">Demo Scenario Seeder</h2>
-          <p className="mt-1 text-sm text-slate-600">Populate this community with realistic demo activity scenarios.</p>
+        <section className="glass-panel mt-6 p-5">
+          <h2 className="font-display text-2xl text-[#10242b]">Demo Scenario Seeder</h2>
+          <p className="mt-1 text-sm text-[#45606a]">Populate this community with realistic demo activity scenarios.</p>
 
           <div className="mt-4 flex flex-wrap gap-2">
             <button className="btn-secondary" onClick={() => runScenario("regular")} disabled={!!seeding}>
@@ -94,7 +94,7 @@ export default function DashboardPage() {
 
           {seedError && <p className="mt-3 text-sm text-red-600">{seedError}</p>}
           {seedResult && (
-            <p className="mt-3 text-sm text-slate-700">
+            <p className="mt-3 text-sm text-[#2a434c]">
               Seeded {seedResult.scenario}: {seedResult.posts_created} posts, {seedResult.comments_created} comments, {seedResult.post_votes_submitted} post votes.
             </p>
           )}

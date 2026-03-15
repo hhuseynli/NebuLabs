@@ -33,9 +33,10 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen bg-canvas">
       <Navbar />
-      <main className="mx-auto max-w-md px-4 py-16">
-        <div className="rounded-3xl border border-ember-100 bg-white p-8 shadow-lg">
-          <h1 className="font-display text-3xl text-slateink">Create account</h1>
+      <main className="page-enter mx-auto max-w-md px-4 py-16">
+        <div className="glass-panel p-8">
+          <p className="text-xs uppercase tracking-[0.2em] text-[#0f8a7b]">Join Cultify</p>
+          <h1 className="mt-2 font-display text-3xl text-[#10242b]">Create account</h1>
           <form
             className="mt-6 space-y-4"
             onSubmit={async (e) => {
@@ -65,8 +66,8 @@ export default function SignupPage() {
             {error && <p className="text-sm text-red-600">{error}</p>}
             <button className="btn-primary w-full">Sign Up</button>
           </form>
-          <p className="mt-4 text-sm text-slate-600">
-            Have an account? <Link className="text-ember-700" to="/login">Login</Link>
+          <p className="mt-4 text-sm text-[#45606a]">
+            Have an account? <Link className="text-[#0c5f57]" to="/login">Login</Link>
           </p>
         </div>
       </main>

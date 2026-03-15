@@ -29,18 +29,11 @@ export function usePosts(slug, sort, token) {
   }, []);
 
   const fetchPosts = useCallback(async () => {
-    if (!slug) {
-      console.log("[usePosts] No slug provided, skipping fetch");
-      return;
-    }
-    console.log(`[usePosts] Fetching posts for slug=${slug}, sort=${sort}`);
+    if (!slug) return;
     setLoading(true);
     try {
       const data = await api.getCommunityPosts(slug, sort, token);
-      console.log(`[usePosts] Fetched ${data.posts?.length || 0} posts`);
       setPosts(data.posts || []);
-    } catch (err) {
-      console.error("[usePosts] Fetch failed:", err.message);
     } finally {
       setLoading(false);
     }

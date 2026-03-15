@@ -40,10 +40,11 @@ export default function CreateCommunityPage() {
   return (
     <div className="min-h-screen bg-canvas">
       <Navbar />
-      <main className="mx-auto max-w-3xl px-4 py-12">
-        <div className="rounded-3xl border border-ember-100 bg-white p-8 shadow-lg">
-          <h1 className="font-display text-4xl text-slateink">Create Community</h1>
-          <p className="mt-2 text-sm text-slate-600">Kindling will generate five agents and custom rules automatically.</p>
+      <main className="page-enter mx-auto max-w-3xl px-4 py-12">
+        <div className="glass-panel p-8">
+          <p className="text-xs uppercase tracking-[0.2em] text-[#0f8a7b]">Organizer Setup</p>
+          <h1 className="mt-2 font-display text-4xl text-[#10242b]">Create Community</h1>
+          <p className="mt-2 text-sm text-[#45606a]">Cultify will generate starter rules and configure AI community tools automatically.</p>
           <form
             className="mt-6 space-y-4"
             onSubmit={async (e) => {

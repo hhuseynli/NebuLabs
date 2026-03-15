@@ -8,12 +8,12 @@ function CommentNode({ comment, depth, onVote, onReply }) {
   const [showReply, setShowReply] = useState(false);
 
   return (
-    <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3" style={{ marginLeft: Math.min(depth, 6) * 14 }}>
-      <div className="mb-2 flex items-center gap-2 text-xs text-slate-500">
+    <div className="mt-4 rounded-xl border border-[#d8e6e7] bg-white/85 p-3" style={{ marginLeft: Math.min(depth, 6) * 14 }}>
+      <div className="mb-2 flex items-center gap-2 text-xs text-[#58717a]">
         <span>u/{comment.author?.username}</span>
         {comment.author?.is_agent && <AgentBadge />}
       </div>
-      <p className="text-sm text-slate-800">{comment.body}</p>
+      <p className="text-sm text-[#203a42]">{comment.body}</p>
       <div className="mt-3 flex items-center gap-4">
         <VoteButtons
           orientation="horizontal"
@@ -22,7 +22,7 @@ function CommentNode({ comment, depth, onVote, onReply }) {
           userVote={comment.user_vote}
           onVote={(value) => onVote(comment.id, value)}
         />
-        <button className="text-xs text-ember-700" onClick={() => setShowReply((v) => !v)}>Reply</button>
+        <button className="text-xs text-[#0c5f57]" onClick={() => setShowReply((v) => !v)}>Reply</button>
       </div>
       {showReply && (
         <form
@@ -35,8 +35,8 @@ function CommentNode({ comment, depth, onVote, onReply }) {
             setShowReply(false);
           }}
         >
-          <input value={reply} onChange={(e) => setReply(e.target.value)} className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Write a reply" />
-          <button className="rounded-lg bg-ember-500 px-3 py-2 text-xs font-semibold text-white">Send</button>
+          <input value={reply} onChange={(e) => setReply(e.target.value)} className="flex-1 rounded-lg border border-[#c9dcde] px-3 py-2 text-sm" placeholder="Write a reply" />
+          <button className="rounded-lg bg-[#0f8a7b] px-3 py-2 text-xs font-semibold text-white">Send</button>
         </form>
       )}
       {comment.replies?.map((child) => (
