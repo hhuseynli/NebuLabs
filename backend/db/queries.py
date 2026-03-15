@@ -5,6 +5,7 @@ import hashlib
 import hmac
 import secrets
 import uuid
+from datetime import datetime, timezone
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
@@ -30,6 +31,7 @@ class InMemoryStore:
     posts_by_community: dict[str, list[str]]
     comments_by_id: dict[str, Comment]
     comments_by_post: dict[str, list[str]]
+    pledges_by_post: dict[str, list[dict[str, Any]]]
     post_votes: dict[str, dict[str, int]]
     comment_votes: dict[str, dict[str, int]]
     phase_history: dict[str, list[dict[str, Any]]]
@@ -50,6 +52,7 @@ store = InMemoryStore(
     posts_by_community={},
     comments_by_id={},
     comments_by_post={},
+    pledges_by_post=defaultdict(list),
     post_votes=defaultdict(dict),
     comment_votes=defaultdict(dict),
     phase_history=defaultdict(list),
@@ -112,6 +115,8 @@ def _community_to_payload(community: Community) -> dict[str, Any]:
         "member_count": community.member_count,
         "revival_phase": community.revival_phase,
         "human_activity_ratio": community.human_activity_ratio,
+        "sentiment_cache": community.sentiment_cache,
+        "sentiment_updated_at": community.sentiment_updated_at.isoformat() if community.sentiment_updated_at else None,
         "created_by": community.created_by,
         "created_at": community.created_at.isoformat(),
     }
@@ -154,6 +159,8 @@ def _post_to_payload(post: Post) -> dict[str, Any]:
         "agent_id": post.agent_id,
         "is_human": post.is_human,
         "opendata_citation": post.opendata_citation,
+        "agent_type": post.agent_type,
+        "fundraiser_meta": post.fundraiser_meta,
         "upvotes": post.upvotes,
         "downvotes": post.downvotes,
         "comment_count": post.comment_count,
@@ -202,6 +209,8 @@ def _row_to_community(row: dict[str, Any]) -> Community:
         member_count=row.get("member_count", 1),
         revival_phase=row.get("revival_phase", "spark"),
         human_activity_ratio=row.get("human_activity_ratio", 0.0),
+        sentiment_cache=row.get("sentiment_cache"),
+        sentiment_updated_at=row.get("sentiment_updated_at"),
         created_by=row.get("created_by", ""),
         created_at=row.get("created_at"),
     )
@@ -234,6 +243,8 @@ def _row_to_post(row: dict[str, Any]) -> Post:
         author_id=row.get("author_id"),
         is_human=row.get("is_human", True),
         opendata_citation=row.get("opendata_citation"),
+        agent_type=row.get("agent_type"),
+        fundraiser_meta=row.get("fundraiser_meta"),
         upvotes=row.get("upvotes", 0),
         downvotes=row.get("downvotes", 0),
         comment_count=row.get("comment_count", 0),
@@ -462,6 +473,8 @@ def insert_post(
     author_id: str | None,
     agent_id: str | None,
     opendata_citation: str | None,
+    agent_type: str | None = None,
+    fundraiser_meta: dict[str, Any] | None = None,
 ) -> Post:
     post = Post(
         id=_new_id(),
@@ -473,6 +486,8 @@ def insert_post(
         author_id=author_id,
         agent_id=agent_id,
         opendata_citation=opendata_citation,
+        agent_type=agent_type,
+        fundraiser_meta=fundraiser_meta,
     )
     store.posts_by_id[post.id] = post
     if community_id not in store.posts_by_community:
@@ -669,6 +684,8 @@ def to_community_response(community: Community, agents: list[Agent]) -> dict[str
         "member_count": community.member_count,
         "revival_phase": community.revival_phase,
         "human_activity_ratio": community.human_activity_ratio,
+        "created_by": community.created_by,
+        "created_at": community.created_at,
         "agents": [agent.model_dump() for agent in agents],
     }
 
@@ -724,6 +741,9 @@ def get_phase_history(community_id: str) -> list[dict[str, Any]]:
 
 
 def to_post_author(*, post: Post) -> dict[str, Any]:
+    if post.agent_type == "fundraiser":
+        return {"id": None, "username": "Cultify Fundraiser Agent", "is_agent": True}
+
     if post.is_human and post.author_id:
         user = store.users_by_id.get(post.author_id)
         username = user.username if user else "unknown"
@@ -803,6 +823,8 @@ def serialize_post(*, post: Post, user_id: str | None = None, include_body: bool
         "title": post.title,
         "flair": post.flair,
         "opendata_citation": post.opendata_citation,
+        "agent_type": post.agent_type,
+        "fundraiser_meta": post.fundraiser_meta,
         "author": to_post_author(post=post),
         "upvotes": post.upvotes,
         "downvotes": post.downvotes,
@@ -858,6 +880,7 @@ def clear_community_content(*, community_id: str) -> None:
     client = get_supabase_client()
     if client:
         try:
+            client.table("pledges").delete().eq("community_id", community_id).execute()
             client.table("votes").delete().eq("community_id", community_id).execute()
             client.table("comments").delete().eq("community_id", community_id).execute()
             client.table("posts").delete().eq("community_id", community_id).execute()
@@ -872,6 +895,7 @@ def clear_community_content(*, community_id: str) -> None:
             store.comments_by_id.pop(comment_id, None)
             store.comment_votes.pop(comment_id, None)
         store.comments_by_post.pop(post_id, None)
+        store.pledges_by_post.pop(post_id, None)
         store.posts_by_id.pop(post_id, None)
         store.post_votes.pop(post_id, None)
 
@@ -938,3 +962,183 @@ def get_user_recent_comments(user_id: str, limit: int = 10) -> list[Comment]:
     comments = [c for c in store.comments_by_id.values() if c.author_id == user_id]
     comments.sort(key=lambda item: item.created_at, reverse=True)
     return comments[:limit]
+
+
+def get_community_content(community_id: str, limit: int = 200) -> str:
+    posts = list_community_posts(community_id=community_id, limit=limit, offset=0)
+    lines: list[str] = []
+    for post in posts:
+        score = int(post.upvotes or 0) - int(post.downvotes or 0)
+        lines.append(f"POST [{score}↑] ({post.id}): {post.title}")
+        lines.append(post.body or "")
+        for comment in list_post_comments(post.id)[:8]:
+            lines.append(f"COMMENT ({comment.id}): {comment.body}")
+        lines.append("")
+    return "\n".join(lines).strip()
+
+
+def get_recent_fundraiser_post(community_id: str, hours: int = 48) -> Post | None:
+    posts = list_community_posts(community_id=community_id, limit=200, offset=0)
+    now = datetime.now(timezone.utc)
+    max_age_seconds = hours * 3600
+    for post in posts:
+        if post.agent_type != "fundraiser":
+            continue
+        created_at = post.created_at
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        if (now - created_at).total_seconds() <= max_age_seconds:
+            return post
+    return None
+
+
+def get_all_active_communities() -> list[dict[str, str]]:
+    communities = list(store.communities_by_id.values())
+    if not communities and get_supabase_client():
+        client = get_supabase_client()
+        if client:
+            try:
+                rows = client.table("communities").select("id,slug").execute().data
+                return [{"id": row.get("id"), "slug": row.get("slug")} for row in rows if row.get("id")]
+            except Exception:
+                pass
+    return [{"id": c.id, "slug": c.slug} for c in communities]
+
+
+def get_cached_sentiment(community_id: str, max_age_minutes: int = 5) -> dict[str, Any] | None:
+    community = get_community_by_id(community_id)
+    if not community or not community.sentiment_cache or not community.sentiment_updated_at:
+        return None
+
+    updated = community.sentiment_updated_at
+    if updated.tzinfo is None:
+        updated = updated.replace(tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc)
+    if (now - updated).total_seconds() > max_age_minutes * 60:
+        return None
+    return dict(community.sentiment_cache)
+
+
+def cache_sentiment(community_id: str, report: dict[str, Any]) -> None:
+    community = store.communities_by_id.get(community_id)
+    now = datetime.now(timezone.utc)
+    if community:
+        community.sentiment_cache = report
+        community.sentiment_updated_at = now
+        _sb_upsert("communities", _community_to_payload(community))
+        return
+
+    remote = get_community_by_id(community_id)
+    if remote:
+        remote.sentiment_cache = report
+        remote.sentiment_updated_at = now
+        _sb_upsert("communities", _community_to_payload(remote))
+
+
+def get_pledge_summary(post_id: str) -> dict[str, Any]:
+    pledges = list_post_pledges(post_id)
+    total = sum(int(p.get("amount_suggested") or 0) for p in pledges)
+    return {
+        "post_id": post_id,
+        "pledge_count": len(pledges),
+        "total_pledged": total,
+        "pledges": pledges,
+    }
+
+
+def list_post_pledges(post_id: str) -> list[dict[str, Any]]:
+    client = get_supabase_client()
+    if client:
+        try:
+            rows = (
+                client.table("pledges")
+                .select("id,user_id,amount_suggested,message,created_at")
+                .eq("post_id", post_id)
+                .order("created_at", desc=False)
+                .execute()
+                .data
+            )
+            out: list[dict[str, Any]] = []
+            for row in rows:
+                user = store.users_by_id.get(row.get("user_id"))
+                username = user.username if user else "unknown"
+                out.append(
+                    {
+                        "id": row.get("id"),
+                        "user_id": row.get("user_id"),
+                        "username": username,
+                        "amount_suggested": row.get("amount_suggested"),
+                        "message": row.get("message"),
+                        "created_at": row.get("created_at"),
+                    }
+                )
+            return out
+        except Exception:
+            pass
+    return list(store.pledges_by_post.get(post_id, []))
+
+
+def add_pledge(*, post_id: str, community_id: str, user_id: str, amount_suggested: int | None, message: str) -> dict[str, Any]:
+    existing = [p for p in store.pledges_by_post.get(post_id, []) if p.get("user_id") == user_id]
+    if existing:
+        raise ValueError("ALREADY_PLEDGED")
+
+    pledge = {
+        "id": _new_id(),
+        "user_id": user_id,
+        "username": store.users_by_id.get(user_id).username if store.users_by_id.get(user_id) else "unknown",
+        "amount_suggested": amount_suggested,
+        "message": message,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    store.pledges_by_post[post_id].append(pledge)
+
+    post = store.posts_by_id.get(post_id)
+    if post and post.fundraiser_meta is not None:
+        summary = get_pledge_summary(post_id)
+        post.fundraiser_meta = {
+            **post.fundraiser_meta,
+            "pledge_count": summary["pledge_count"],
+            "total_pledged": summary["total_pledged"],
+        }
+        _sb_upsert("posts", _post_to_payload(post))
+
+    _sb_insert(
+        "pledges",
+        {
+            "id": pledge["id"],
+            "post_id": post_id,
+            "community_id": community_id,
+            "user_id": user_id,
+            "amount_suggested": amount_suggested,
+            "message": message,
+            "created_at": pledge["created_at"],
+        },
+    )
+    return pledge
+
+
+def remove_pledge(*, post_id: str, user_id: str) -> bool:
+    before = len(store.pledges_by_post.get(post_id, []))
+    store.pledges_by_post[post_id] = [p for p in store.pledges_by_post.get(post_id, []) if p.get("user_id") != user_id]
+    removed = len(store.pledges_by_post.get(post_id, [])) != before
+
+    client = get_supabase_client()
+    if client:
+        try:
+            result = client.table("pledges").delete().eq("post_id", post_id).eq("user_id", user_id).execute()
+            removed = removed or bool(getattr(result, "data", []))
+        except Exception:
+            pass
+
+    post = store.posts_by_id.get(post_id)
+    if post and post.fundraiser_meta is not None:
+        summary = get_pledge_summary(post_id)
+        post.fundraiser_meta = {
+            **post.fundraiser_meta,
+            "pledge_count": summary["pledge_count"],
+            "total_pledged": summary["total_pledged"],
+        }
+        _sb_upsert("posts", _post_to_payload(post))
+
+    return removed

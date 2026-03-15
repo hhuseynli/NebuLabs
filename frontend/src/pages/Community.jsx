@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import FAQTab from "../components/FAQTab";
+import FundraiserPost from "../components/FundraiserPost";
 import Navbar from "../components/Navbar";
 import PostCard from "../components/PostCard";
 import { useAuth } from "../hooks/useAuth";
@@ -19,7 +20,20 @@ export default function CommunityPage() {
   const { posts, loading, createPost, votePost } = usePosts(slug, sort, token);
 
   useEffect(() => {
-    api.getCommunity(slug).then(setCommunity).catch(() => setCommunity(null));
+    if (!slug) {
+      console.log("[Community] No slug in params");
+      return;
+    }
+    console.log(`[Community] Mounted/Updated. Fetching community: ${slug}`);
+    api.getCommunity(slug)
+      .then((data) => {
+        console.log("[Community] Community fetched:", data.slug);
+        setCommunity(data);
+      })
+      .catch((err) => {
+        console.error("[Community] Failed to fetch community:", err.message);
+        setCommunity(null);
+      });
   }, [slug]);
 
   async function handleVote(postId, value) {
@@ -90,7 +104,11 @@ export default function CommunityPage() {
               <>
                 {loading && <p className="text-sm text-slate-500">Loading posts...</p>}
                 {posts.map((post) => (
-                  <PostCard key={post.id} post={post} slug={slug} onVote={handleVote} />
+                  post.agent_type === "fundraiser" ? (
+                    <FundraiserPost key={post.id} post={post} token={token} />
+                  ) : (
+                    <PostCard key={post.id} post={post} slug={slug} onVote={handleVote} />
+                  )
                 ))}
               </>
             )}

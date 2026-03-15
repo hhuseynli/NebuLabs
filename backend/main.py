@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from routers.auth import router as auth_router
 from routers.communities import router as communities_router
 from routers.demo import router as demo_router
+from routers.fundraiser import router as fundraiser_router
 from routers.faq import router as faq_router
 from routers.posts import router as posts_router
 from routers.sentiment import router as sentiment_router
@@ -68,6 +69,7 @@ app.include_router(communities_router, prefix="/api/v1")
 app.include_router(demo_router, prefix="/api/v1")
 app.include_router(posts_router, prefix="/api/v1")
 app.include_router(faq_router, prefix="/api/v1")
+app.include_router(fundraiser_router, prefix="/api/v1")
 app.include_router(sentiment_router, prefix="/api/v1")
 app.include_router(users_router, prefix="/api/v1")
 

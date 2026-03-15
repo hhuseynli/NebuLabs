@@ -10,10 +10,13 @@ import { api } from "../lib/api";
 export default function DashboardPage() {
   const { slug } = useParams();
   const { token } = useAuth();
-  const { report, loading, error, refresh } = useSentiment(slug, token);
+  const { report, loading, error, refresh, canRefresh, secondsUntilRefresh, lastFetched } = useSentiment(slug, token);
   const [seeding, setSeeding] = useState("");
   const [seedResult, setSeedResult] = useState(null);
   const [seedError, setSeedError] = useState("");
+  const [scanLoading, setScanLoading] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
+  const [scanError, setScanError] = useState("");
 
   async function runScenario(scenario) {
     if (!token || !slug) return;
@@ -30,6 +33,20 @@ export default function DashboardPage() {
     }
   }
 
+  async function runFundraiserScan() {
+    if (!token || !slug) return;
+    setScanLoading(true);
+    setScanError("");
+    try {
+      const result = await api.scanFundraiser(token, slug);
+      setScanResult(result);
+    } catch (err) {
+      setScanError(err.message || "Failed to scan fundraiser needs");
+    } finally {
+      setScanLoading(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-canvas">
       <Navbar />
@@ -38,8 +55,26 @@ export default function DashboardPage() {
         <p className="mt-1 text-sm text-slate-600">Track community health with sentiment insights, friction signals, and churn risk indicators.</p>
 
         <div className="mt-6">
-          <SentimentDashboard report={report} loading={loading} error={error} onRefresh={refresh} />
+          <SentimentDashboard
+            report={report}
+            loading={loading}
+            error={error}
+            onRefresh={refresh}
+            canRefresh={canRefresh}
+            secondsUntilRefresh={secondsUntilRefresh}
+            lastFetched={lastFetched}
+          />
         </div>
+
+        <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
+          <h2 className="font-display text-2xl text-slateink">Fundraiser Agent</h2>
+          <p className="mt-1 text-sm text-slate-600">Run a manual scan to detect community funding needs and create a fundraiser post.</p>
+          <button className="btn-secondary mt-3" onClick={runFundraiserScan} disabled={scanLoading}>
+            {scanLoading ? "Scanning..." : "Run Fundraiser Scan"}
+          </button>
+          {scanError && <p className="mt-2 text-sm text-red-600">{scanError}</p>}
+          {scanResult && <p className="mt-2 text-sm text-slate-700">{scanResult.message}</p>}
+        </section>
 
         <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
           <h2 className="font-display text-2xl text-slateink">Demo Scenario Seeder</h2>

@@ -25,30 +25,42 @@ function getValidationMessage(detail) {
 }
 
 async function request(path, { method = "GET", token, body } = {}) {
-  const response = await fetch(`${API_URL}${path}`, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...authHeaders(token),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  const url = `${API_URL}${path}`;
+  console.log(`[API] ${method} ${path}`);
+  
+  try {
+    const response = await fetch(url, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(token),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
 
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    if (response.status === 401) {
-      localStorage.removeItem("kindling_user");
-      localStorage.removeItem("kindling_token");
-      if (unauthorizedHandler) {
-        unauthorizedHandler();
+    const data = await response.json().catch(() => ({}));
+    console.log(`[API] Response: ${response.status}`, data);
+    
+    if (!response.ok) {
+      if (response.status === 401) {
+        localStorage.removeItem("kindling_user");
+        localStorage.removeItem("kindling_token");
+        if (unauthorizedHandler) {
+          unauthorizedHandler();
+        }
       }
+
+      const validationMessage = getValidationMessage(data.detail);
+      const errorMsg = validationMessage || data.error?.message || data.detail || "Request failed";
+      console.error(`[API] Error: ${errorMsg}`);
+      throw new Error(errorMsg);
     }
 
-    const validationMessage = getValidationMessage(data.detail);
-    throw new Error(validationMessage || data.error?.message || data.detail || "Request failed");
+    return data;
+  } catch (err) {
+    console.error(`[API] Exception on ${method} ${path}:`, err);
+    throw err;
   }
-
-  return data;
 }
 
 export const api = {
@@ -67,6 +79,10 @@ export const api = {
   voteComment: (token, commentId, value) => request(`/comments/${commentId}/vote`, { method: "POST", token, body: { value } }),
   askFAQ: (slug, question) => request(`/communities/${slug}/faq/ask?q=${encodeURIComponent(question)}`),
   getSentiment: (token, slug) => request(`/communities/${slug}/sentiment`, { token }),
+  scanFundraiser: (token, slug) => request(`/communities/${slug}/fundraiser/scan`, { method: "POST", token }),
+  getPledges: (token, postId) => request(`/posts/${postId}/pledges`, { token }),
+  createPledge: (token, postId, payload) => request(`/posts/${postId}/pledge`, { method: "POST", token, body: payload }),
+  retractPledge: (token, postId) => request(`/posts/${postId}/pledge`, { method: "DELETE", token }),
   seedDemoScenario: (token, slug, scenario) => request(`/communities/${slug}/demo-seed`, { method: "POST", token, body: { scenario } }),
   getAgents: (slug) => request(`/communities/${slug}/agents`),
   updateAgent: (token, slug, agentId, status) => request(`/communities/${slug}/agents/${agentId}`, { method: "PATCH", token, body: { status } }),

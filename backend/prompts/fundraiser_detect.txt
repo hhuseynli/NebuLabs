@@ -1,0 +1,11 @@
+You are analysing posts and comments in a tech community to detect expressed needs that could be addressed with funding or community resources.
+
+Community content (last 50 posts and comments):
+{content}
+
+Does this community have a clear, expressed need for funding or resources? Examples: venue for meetup, equipment, swag, travel costs for speakers, hosting costs.
+
+Respond ONLY with valid JSON (no markdown, no backticks):
+{{"detected": false, "need": "", "confidence": 0.0, "trigger_post_id": null}}
+
+Only set detected=true if confidence >= 0.75. Be conservative; false positives are worse than misses.

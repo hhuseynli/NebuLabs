@@ -1,0 +1,12 @@
+You are a community manager creating a fundraising post for a tech community called "{community_name}".
+
+The need that was detected: {need}
+
+Write an enthusiastic, honest fundraising post. Include:
+- What the goal is
+- Why it matters for the community
+- A suggested goal amount in AZN (be realistic: venue ~200-500, equipment ~100-300, swag ~50-150)
+- How members can help (pledge support below)
+
+Respond ONLY with valid JSON (no markdown, no backticks):
+{{"title": "Community Goal: ...", "body": "...", "goal_amount": 0, "deadline_days": 14}}

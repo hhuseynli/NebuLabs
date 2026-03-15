@@ -5,7 +5,7 @@ import random
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from db import queries
-from services import agent_service, feed_service, revival_service
+from services import agent_service, feed_service, fundraiser_service, revival_service
 
 scheduler = AsyncIOScheduler(timezone="UTC")
 
@@ -96,20 +96,34 @@ async def run_spark_cycle(community_id: str) -> None:
 
 
 def schedule_community(community_id: str) -> None:
-    job_id = f"spark:{community_id}"
-    if scheduler.get_job(job_id):
-        return
+    spark_job_id = f"spark:{community_id}"
+    if not scheduler.get_job(spark_job_id):
+        scheduler.add_job(
+            run_spark_cycle,
+            "interval",
+            seconds=90,
+            args=[community_id],
+            id=spark_job_id,
+            replace_existing=True,
+        )
 
-    scheduler.add_job(
-        run_spark_cycle,
-        "interval",
-        seconds=90,
-        args=[community_id],
-        id=job_id,
-        replace_existing=True,
-    )
+    fundraiser_job_id = f"fundraiser:{community_id}"
+    if not scheduler.get_job(fundraiser_job_id):
+        scheduler.add_job(
+            fundraiser_service.scan_and_create,
+            "interval",
+            minutes=10,
+            args=[community_id],
+            id=fundraiser_job_id,
+            replace_existing=True,
+        )
 
 
 def start_scheduler() -> None:
     if not scheduler.running:
         scheduler.start()
+
+    for community in queries.get_all_active_communities():
+        community_id = community.get("id")
+        if community_id:
+            schedule_community(community_id)

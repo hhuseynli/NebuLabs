@@ -31,10 +31,16 @@ async def answer_question(community_id: str, question: str) -> dict:
 
     context = "\n".join(snippets[:300])
     source_post_id = _find_source_post_id(posts, question)
+    source_excerpt = None
+    if source_post_id:
+        source_post = next((post for post in posts if post.id == source_post_id), None)
+        if source_post:
+            source_excerpt = (source_post.body or source_post.title or "")[:180] or None
 
     fallback_answer = {
-        "answer": "I could not find a confident answer from community content yet. Try asking in the Posts tab.",
-        "source_post_id": source_post_id,
+        "answer": "I couldn't find a confident answer in the community yet. Try asking in the Posts tab!",
+        "source_post_id": None,
+        "source_excerpt": None,
         "confidence": 0.24,
     }
 
@@ -47,9 +53,15 @@ async def answer_question(community_id: str, question: str) -> dict:
     answer = str(payload.get("answer") or fallback_answer["answer"])
     confidence = float(payload.get("confidence") or fallback_answer["confidence"])
     response_source = payload.get("source_post_id") or source_post_id
+    response_excerpt = payload.get("source_excerpt") or source_excerpt
+
+    bounded_confidence = max(0.0, min(1.0, confidence))
+    if bounded_confidence < 0.4:
+        return fallback_answer
 
     return {
         "answer": answer,
         "source_post_id": response_source,
-        "confidence": max(0.0, min(1.0, confidence)),
+        "source_excerpt": response_excerpt,
+        "confidence": bounded_confidence,
     }

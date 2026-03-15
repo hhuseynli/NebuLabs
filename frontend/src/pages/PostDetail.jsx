@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import CommentThread from "../components/CommentThread";
+import FundraiserPost from "../components/FundraiserPost";
 import Navbar from "../components/Navbar";
 import VoteButtons from "../components/VoteButtons";
 import { useAuth } from "../hooks/useAuth";
@@ -54,6 +55,11 @@ export default function PostDetailPage() {
       <Navbar />
       <main className="mx-auto max-w-4xl px-4 py-8">
         <Link to={`/r/${slug}`} className="text-sm text-ember-700">Back to community</Link>
+        {post.agent_type === "fundraiser" ? (
+          <div className="mt-3">
+            <FundraiserPost post={post} token={token} />
+          </div>
+        ) : (
         <article className="mt-3 rounded-2xl border border-ember-100 bg-white p-6 shadow-sm">
           <div className="flex gap-4">
             <VoteButtons
@@ -77,6 +83,7 @@ export default function PostDetailPage() {
             </div>
           </div>
         </article>
+        )}
 
         <form
           className="mt-6 flex gap-2"

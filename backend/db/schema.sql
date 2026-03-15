@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS communities (
   member_count INT DEFAULT 1,
   revival_phase revival_phase DEFAULT 'spark',
   human_activity_ratio FLOAT DEFAULT 0.0,
+  sentiment_cache JSONB,
+  sentiment_updated_at TIMESTAMPTZ,
   created_by UUID,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -58,7 +60,9 @@ CREATE TABLE IF NOT EXISTS posts (
   author_id UUID,
   agent_id UUID,
   is_human BOOLEAN NOT NULL DEFAULT TRUE,
+  agent_type TEXT,
   opendata_citation TEXT,
+  fundraiser_meta JSONB,
   upvotes INT DEFAULT 0,
   downvotes INT DEFAULT 0,
   comment_count INT DEFAULT 0,
@@ -87,6 +91,17 @@ CREATE TABLE IF NOT EXISTS votes (
   comment_id UUID,
   value INT CHECK (value IN (-1, 1)),
   created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS pledges (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  post_id UUID NOT NULL,
+  community_id UUID NOT NULL,
+  user_id UUID NOT NULL,
+  amount_suggested INT,
+  message TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (post_id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS phase_history (

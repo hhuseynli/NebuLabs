@@ -10,6 +10,7 @@ Return valid JSON only with this shape:
 {{
   "answer": "short helpful answer",
   "source_post_id": "post id string or null",
+  "source_excerpt": "short quote or null",
   "confidence": 0.0
 }}
 

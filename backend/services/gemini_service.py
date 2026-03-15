@@ -17,8 +17,11 @@ async def generate_text(prompt: str, model: str = "gemini-2.0-flash") -> str:
     if not _configured():
         return ""
 
-    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-    response = await client.aio.models.generate_content(model=model, contents=prompt)
+    try:
+        client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+        response = await client.aio.models.generate_content(model=model, contents=prompt)
+    except Exception:
+        return ""
 
     text = getattr(response, "text", None)
     if text:

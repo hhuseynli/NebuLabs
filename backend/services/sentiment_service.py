@@ -35,6 +35,13 @@ def _heuristic_score(texts: list[str]) -> int:
 
 
 async def build_report(community_id: str) -> dict:
+    cached = queries.get_cached_sentiment(community_id=community_id, max_age_minutes=5)
+    if cached:
+        return {
+            **cached,
+            "cached": True,
+        }
+
     posts = queries.list_community_posts(community_id=community_id, limit=100, offset=0)
     post_texts = [f"{p.title}. {p.body}" for p in posts]
     comments = []
@@ -62,7 +69,7 @@ async def build_report(community_id: str) -> dict:
         prompt = _read_prompt("sentiment_report.txt").format(context=context)
         payload = await gemini_service.generate_json(prompt, fallback=fallback)
 
-    return {
+    report = {
         "score": score,
         "label": _label(score),
         "summary": str(payload.get("summary") or fallback["summary"]),
@@ -70,4 +77,7 @@ async def build_report(community_id: str) -> dict:
         "friction_signals": payload.get("friction_signals") or fallback["friction_signals"],
         "churn_risk_members": payload.get("churn_risk_members") or fallback["churn_risk_members"],
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "cached": False,
     }
+    queries.cache_sentiment(community_id=community_id, report=report)
+    return report

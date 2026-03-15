@@ -37,6 +37,11 @@ class CommentCreate(BaseModel):
     parent_comment_id: str | None = None
 
 
+class PledgeCreate(BaseModel):
+    amount_suggested: int | None = Field(default=None, ge=1, le=100000)
+    message: str = Field(min_length=1, max_length=140)
+
+
 class Community(BaseModel):
     id: str
     name: str
@@ -46,6 +51,8 @@ class Community(BaseModel):
     member_count: int = 1
     revival_phase: Literal["spark", "pull", "handoff", "complete"] = "spark"
     human_activity_ratio: float = 0.0
+    sentiment_cache: dict | None = None
+    sentiment_updated_at: datetime | None = None
     created_by: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -60,6 +67,8 @@ class Post(BaseModel):
     author_id: str | None = None
     is_human: bool = True
     opendata_citation: str | None = None
+    agent_type: str | None = None
+    fundraiser_meta: dict | None = None
     upvotes: int = 0
     downvotes: int = 0
     comment_count: int = 0
