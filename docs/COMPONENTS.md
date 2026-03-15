@@ -1,230 +1,274 @@
-# Component Structure — Cultify
+# Components — Cultify
 
 ## Route Map
 
 ```
-/                           Landing
-/login                      Login
-/signup                     Signup
-/home                       Home (aggregated feed)
-/r/:slug                    Community  ← tabs: Posts | FAQ | Fact Checker
-/r/:slug/submit             CreatePost
-/r/:slug/post/:id           PostDetail
-/r/:slug/dashboard          Dashboard  ← organizer only: Sentiment
-/create-community           CreateCommunity
-/u/:username                Profile
+/                     Landing
+/login                Login
+/signup               Signup
+/home                 Home
+/r/:slug              Community  (tabs: Posts | FAQ)
+/r/:slug/submit       CreatePost
+/r/:slug/post/:id     PostDetail  (FundraiserPost if agent_type=fundraiser)
+/r/:slug/dashboard    Dashboard   (organizer only: Sentiment)
+/create-community     CreateCommunity
+/u/:username          Profile
 ```
 
 ---
 
-## Page Layouts
+## Community Page — Tab Structure
 
-### `Community` — The Core Page
-Three-tab layout. This is where all three active AI features live.
+```jsx
+// pages/Community.jsx
+const TABS = ["Posts", "FAQ"]
 
-```
-<Community>
-  <CommunityHeader />              // banner, name, member count, join button
-  <TabBar tabs={["Posts", "FAQ", "Fact Checker"]} />
-  <div class="two-col">
-    <main>
-      {tab === "Posts" && (
-        <>
-          <SortBar />              // Hot | New | Top
-          <CreatePostPrompt />
-          <PostCard /> × N
-        </>
+<CommunityHeader />
+<TabBar tabs={TABS} active={tab} onChange={setTab} />
+<div className="flex gap-6">
+  <main className="flex-1">
+    {tab === "Posts" && <>
+      <SortBar />
+      <CreatePostPrompt />
+      {posts.map(p =>
+        p.agent_type === "fundraiser"
+          ? <FundraiserPost key={p.id} post={p} />
+          : <PostCard key={p.id} post={p} />
       )}
-      {tab === "FAQ" && <FAQTab communitySlug={slug} />}        // ✅
-      {tab === "Fact Checker" && <FactCheckList slug={slug} />} // ✅ list of checked posts
-    </main>
-    <aside>
-      <AboutPanel />
-      <RulesPanel />
-    </aside>
-  </div>
-</Community>
-```
-
-### `PostDetail`
-```
-<PostDetail>
-  <VoteButtons vertical />
-  <PostBody />                     // title, flair, body, author, timestamp
-  <FactCheckPanel postId={id} />   // ✅ inline panel, lazy-loads on expand
-  <CommentForm />
-  <CommentThread />                // recursive
-</PostDetail>
-```
-
-### `Dashboard` — Organizer Only
-```
-<Dashboard>
-  <SentimentDashboard slug={slug} />   // ✅ health report
-  <DemoControls />                     // manual phase controls (hackathon only)
-</Dashboard>
+    </>}
+    {tab === "FAQ" && <FAQTab communitySlug={slug} />}
+  </main>
+  <aside className="w-72">
+    <AboutPanel />
+    <RulesPanel />
+    {isCreator && <Link to={`/r/${slug}/dashboard`}>Manage Community →</Link>}
+  </aside>
+</div>
 ```
 
 ---
 
 ## Component Specs
 
-### `FAQTab` ✅
+### `FAQTab`
 ```
+File: components/tabs/FAQTab.jsx
 Props: communitySlug (string)
 
 State:
   question: string
-  answer: { answer, source_post_id, source_excerpt, confidence } | null
+  result: { answer, source_post_id, source_excerpt, confidence } | null
   loading: boolean
+  history: result[]   // last 5, session-only
 
-Renders:
-  - Search-style input: "Ask the community anything..."
-  - [Ask] button
-  - On loading: spinner + "Searching community knowledge..."
-  - On answer:
-      Answer text (large, readable)
-      Confidence bar (green if >0.7, yellow if 0.4–0.7, grey if <0.4)
-      "Source: [post title]" link if source_post_id exists
-      "Ask in the community" CTA if low confidence
-  - Previous Q&A history (session only, last 5)
+UI:
+  Input placeholder: "Ask the community anything..."
+  [Ask] button — disabled when loading or question empty
+  
+  loading=true:
+    Spinner + "Searching community knowledge..."
+  
+  result, confidence >= 0.7:
+    Answer text (prose, readable font size)
+    Confidence bar: green fill = confidence * 100%
+    "From: [post title]" link if source_post_id
+  
+  result, confidence < 0.4:
+    Muted text: "Couldn't find a confident answer in the community yet."
+    CTA: [Ask in the community →] links to /r/:slug/submit
+  
+  Previous Q&As: accordion list below, last 5 questions
+
+Hook: useFAQ(communitySlug)
+  → ask(question): calls GET /communities/:slug/faq/ask?q=...
+  → returns { result, loading }
 ```
 
-### `FactCheckPanel` ✅
+### `SentimentDashboard`
 ```
-Props: postId (string)
-
-State:
-  expanded: boolean
-  result: { verdicts[], overall, checked_at } | null
-  loading: boolean
-
-Renders (collapsed):
-  Small bar below post: "🔍 Check facts in this post"
-  → click to expand
-
-Renders (expanded, loading):
-  "Analysing claims..." + spinner
-
-Renders (expanded, loaded):
-  Overall badge:
-    ✓ "All claims supported"    (green)
-    ⚠ "Contains errors"         (amber)
-    ? "Mostly unverified"        (grey)
-
-  Per-claim row:
-    Claim text (quoted)
-    Verdict chip: SUPPORTED | UNVERIFIED | CONTRADICTED
-    Explanation (collapsed by default, expands on click)
-    Confidence percentage
-
-Design rule: amber/red verdicts draw attention but never feel alarming
-```
-
-### `SentimentDashboard` ✅
-```
+File: components/tabs/SentimentDashboard.jsx
 Props: slug (string)
 
-State:
+State (via useSentiment):
   report: SentimentReport | null
   loading: boolean
+  lastFetched: Date | null
 
-Renders:
-  Health Score — large number (0–100) with label badge
-    ≥70 = "Healthy" (green)
-    40–69 = "Neutral" (yellow)
-    <40 = "At Risk" (red)
+UI:
+  [Refresh Report] button
+    → disabled if lastFetched < 5min ago
+    → shows countdown: "Refresh in 3:42"
+  
+  loading=true:
+    Spinner + "Analysing community health..."
+  
+  report loaded:
+    Score section:
+      Large number (0-100)
+      Label badge:
+        score >= 70 → "Healthy" (green bg)
+        score 40-69 → "Neutral" (yellow bg)
+        score < 40  → "At Risk" (red bg)
+      Summary paragraph (grey text, smaller)
+    
+    Trending Topics:
+      Chip list, each chip = one topic string
+    
+    Friction Signals:
+      List with ⚠ icon prefix per item
+      Empty state: "No friction signals detected"
+    
+    Churn Risk Members:
+      List of usernames as links to /u/:username
+      "At risk" red badge next to each
+      Empty state: "No churn risk detected"
+    
+    "Last updated: X minutes ago" footer
 
-  Summary paragraph (Gemini-generated, 2–3 sentences)
+Hook: useSentiment(slug)
+  → fetch(): calls GET /communities/:slug/sentiment
+  → returns { report, loading, fetch }
+  → enforces 5min cooldown client-side before re-enabling button
+```
 
-  Trending Topics — chip list
+### `FundraiserPost`
+```
+File: components/posts/FundraiserPost.jsx
+Props: post (Post with agent_type="fundraiser")
 
-  Friction Signals — warning list with ⚠ icon per item
+Renders differently from PostCard — fundraiser-specific layout:
 
-  Churn Risk Members — list of usernames with "At risk" badge
-    → clicking username opens their profile
+Header bar: teal/emerald accent
+  "🎯 Community Goal" label
 
-  [Refresh Report] button (rate-limited: once per 5 min)
-  "Last updated: X minutes ago"
+Title (large)
+Body (full text, no truncation on feed — fundraisers should be fully readable)
+
+Progress section:
+  Goal: AZN {goal_amount}
+  Progress bar:
+    fill % = (total_pledged / goal_amount) * 100, capped at 100
+    green fill
+  "{pledge_count} members pledged · AZN {total_pledged} committed"
+
+[Pledge Support] button
+  → if already pledged: shows "✓ Pledged" (muted, green) + [Retract] link
+  → if not pledged: opens PledgeModal
+
+Deadline:
+  "Goal closes in X days" or "Goal closed" if past deadline
+
+Attribution:
+  "Posted by Cultify Fundraiser Agent" — small, muted
+
+Recent pledges (collapsed, expand on click):
+  "7 members pledged" → expands to list
+  Each: avatar + username + message + optional amount
+```
+
+### `PledgeModal`
+```
+State: amount (optional int), message (string), submitting
+
+Fields:
+  Amount (AZN) — optional number input, placeholder "Leave blank to not specify"
+  Message — text input, placeholder "Happy to help!" — max 140 chars
+  [Pledge Support] submit button
+  [Cancel]
+
+On submit → POST /posts/:id/pledge
+On success → close modal, update FundraiserPost state, show "✓ Pledged"
 ```
 
 ### `PostCard`
 ```
+File: components/posts/PostCard.jsx
 Props: post, showCommunity (bool)
 
-Layout: vote buttons left | content right
+Note: never renders fundraiser posts — Community.jsx handles routing to FundraiserPost
 
-Content:
-  - Flair chip (if exists)
-  - Title (link to PostDetail)
-  - "u/huseyn · r/gdg-baku · 2h ago"
-  - "💬 7 comments"
-  - FactCheck indicator: small "🔍 Fact-checked" chip if has_factcheck
+Left: VoteButtons (vertical)
+Right:
+  Flair chip (if exists)
+  Title → link to /r/:slug/post/:id
+  "u/{username} · {community} · {time ago}"
+  "💬 {comment_count} comments"
 ```
 
 ### `VoteButtons`
 ```
 Props: upvotes, downvotes, userVote (1|-1|null), onVote, orientation
 
-Behaviour:
-  - Click active vote → removes it (sends value: 0)
-  - Optimistic UI — update locally, persist async
-  - Colors: upvote = orange, downvote = blue, neutral = grey
+Optimistic update:
+  → update local state immediately
+  → call API in background
+  → revert on error
+
+Colors: upvote=orange, downvote=blue, neutral=grey
+Toggle: clicking active vote sends value=0 (removes vote)
 ```
 
 ### `CommentThread`
-Recursive. Max depth 6 — beyond that renders a "continue thread" link.
 ```
-Props: comment, depth
+Recursive. Max depth 6.
+
+Props: comment, depth (int)
 
 Renders:
   CommentCard
-  ReplyForm (collapsed → expands on "Reply" click)
-  CommentThread × N for each reply (depth + 1, left border indent)
-```
-
-### `CommentCard`
-```
-Props: comment
-
-  - Author + timestamp
-  - Body
-  - VoteButtons horizontal
-  - Reply | Share actions
+  ReplyForm (hidden by default, shown on "Reply" click)
+    → POST /posts/:id/comments with parent_comment_id
+  indent: pl-{depth * 4} left border on nested levels
+  depth > 6: "Continue thread →" link
 ```
 
 ---
 
-## Hooks Reference
+## Hooks
 
-| Hook | Returns | Behaviour |
-|------|---------|-----------|
-| `useAuth()` | user, token, login, signup, logout, loading | Persists token in localStorage; clears on 401 |
-| `usePosts(slug, sort)` | posts, loading, createPost, fetchMore | Polls every 30s |
-| `useComments(postId)` | comments, loading, createComment, voteComment | Fetches full tree on mount |
-| `useFAQ(slug)` | ask(question), answer, loading | Calls GET /faq/ask on submit |
-| `useFactCheck(postId)` | trigger(), result, loading | Calls POST /factcheck on demand |
-| `useSentiment(slug)` | report, loading, refresh | Calls GET /sentiment; enforces 5min rate limit client-side |
-| `useAgents(slug)` | agents, loading, retireAgent | 🔲 polls every 15s |
-| `useRevival(slug)` | status, loading, advancePhase | 🔲 polls every 10s |
-
----
-
-## Context
-
-### `AuthContext`
-```js
-{ user, token, login, signup, logout, loading }
+### `useAuth()`
+```javascript
+// Returns: { user, token, login, signup, logout, loading }
+// - Persists token in localStorage
+// - On any 401 response anywhere in app: clear token + user, redirect /login
+// - login() and signup() set token on success
 ```
 
-### `CommunityContext`
-```js
-{ community, setCommunity, isLoading }
-// wraps Community, PostDetail, Dashboard
+### `usePosts(slug, sort)`
+```javascript
+// Returns: { posts, loading, createPost, fetchMore, hasMore }
+// - Initial fetch on mount
+// - Polls every 30s for new posts
+// - createPost(data) → POST /communities/:slug/posts → prepend to list
 ```
 
-### `FeedContext`
-```js
-{ posts, addPost, updatePost }
-// updated by usePosts polling; 🔲 also by SSE when revival arc active
+### `useComments(postId)`
+```javascript
+// Returns: { comments, loading, createComment, voteComment }
+// - Fetches full nested tree on mount
+// - createComment(body, parentId) → POST /posts/:id/comments
+```
+
+### `useFAQ(communitySlug)`
+```javascript
+// Returns: { ask, result, loading, history }
+// - ask(question) → GET /communities/:slug/faq/ask?q=...
+// - Keeps last 5 results in history array (session state)
+```
+
+### `useSentiment(slug)`
+```javascript
+// Returns: { report, loading, fetch, canRefresh, secondsUntilRefresh }
+// - fetch() → GET /communities/:slug/sentiment
+// - canRefresh: false for 5 min after last fetch
+// - secondsUntilRefresh: countdown for button label
+```
+
+### `useFundraiser(postId)`
+```javascript
+// Returns: { pledges, pledgeCount, totalPledged, userPledge, pledge, retract, loading }
+// - Fetches GET /posts/:id/pledges on mount
+// - pledge(amount, message) → POST /posts/:id/pledge
+// - retract() → DELETE /posts/:id/pledge
+// - userPledge: current user's pledge or null
 ```

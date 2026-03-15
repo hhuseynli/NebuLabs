@@ -1,6 +1,6 @@
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-import { api } from "../lib/api";
+import { api, setAuthFailureHandler } from "../lib/api";
 
 const AuthContext = createContext(null);
 
@@ -46,6 +46,15 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("kindling_user");
     localStorage.removeItem("kindling_token");
   }
+
+  useEffect(() => {
+    setAuthFailureHandler(() => {
+      setUser(null);
+      setToken(null);
+    });
+
+    return () => setAuthFailureHandler(null);
+  }, []);
 
   const value = useMemo(() => ({ user, token, loading, signup, login, logout }), [user, token, loading]);
 

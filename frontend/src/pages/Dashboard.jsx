@@ -1,88 +1,69 @@
-import { useMemo } from "react";
 import { useParams } from "react-router-dom";
+import { useState } from "react";
 
 import Navbar from "../components/Navbar";
-import RevivalArcBar from "../components/RevivalArcBar";
-import { useAgents } from "../hooks/useAgents";
+import SentimentDashboard from "../components/SentimentDashboard";
 import { useAuth } from "../hooks/useAuth";
-import { useRevival } from "../hooks/useRevival";
-
-function ActivityChart({ status }) {
-  const human = status?.human_posts || 0;
-  const agent = status?.agent_posts || 0;
-  const total = Math.max(human + agent, 1);
-
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Activity</h2>
-      <div className="mt-4 space-y-3">
-        <div>
-          <div className="mb-1 flex justify-between text-xs"><span>Human posts</span><span>{human}</span></div>
-          <div className="h-2 rounded bg-slate-100"><div className="h-2 rounded bg-emerald-500" style={{ width: `${(human / total) * 100}%` }} /></div>
-        </div>
-        <div>
-          <div className="mb-1 flex justify-between text-xs"><span>Agent posts</span><span>{agent}</span></div>
-          <div className="h-2 rounded bg-slate-100"><div className="h-2 rounded bg-blue-500" style={{ width: `${(agent / total) * 100}%` }} /></div>
-        </div>
-      </div>
-    </div>
-  );
-}
+import { useSentiment } from "../hooks/useSentiment";
+import { api } from "../lib/api";
 
 export default function DashboardPage() {
   const { slug } = useParams();
   const { token } = useAuth();
-  const { status, advancePhase } = useRevival(slug, token);
-  const { agents, retireAgent } = useAgents(slug, token);
+  const { report, loading, error, refresh } = useSentiment(slug, token);
+  const [seeding, setSeeding] = useState("");
+  const [seedResult, setSeedResult] = useState(null);
+  const [seedError, setSeedError] = useState("");
 
-  const controls = useMemo(
-    () => [
-      ["pull", "Advance to Pull"],
-      ["handoff", "Advance to Handoff"],
-      ["complete", "Advance to Complete"],
-    ],
-    []
-  );
+  async function runScenario(scenario) {
+    if (!token || !slug) return;
+    setSeeding(scenario);
+    setSeedError("");
+    try {
+      const result = await api.seedDemoScenario(token, slug, scenario);
+      setSeedResult(result);
+      await refresh();
+    } catch (err) {
+      setSeedError(err.message || "Failed to seed demo scenario");
+    } finally {
+      setSeeding("");
+    }
+  }
 
   return (
     <div className="min-h-screen bg-canvas">
       <Navbar />
-      <main className="mx-auto max-w-6xl px-4 py-8">
-        <h1 className="font-display text-4xl text-slateink">Revival Dashboard</h1>
-        <div className="mt-6 grid gap-6 lg:grid-cols-[2fr_1fr]">
-          <section className="space-y-4">
-            <RevivalArcBar phase={status?.phase} ratio={status?.human_activity_ratio || 0} size="large" />
-            <ActivityChart status={status} />
-            <div className="rounded-2xl border border-slate-200 bg-white p-5">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Demo Controls</h2>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {controls.map(([phase, label]) => (
-                  <button key={phase} className="btn-secondary" onClick={() => advancePhase(phase)}>{label}</button>
-                ))}
-              </div>
-            </div>
-          </section>
+      <main className="mx-auto max-w-5xl px-4 py-8">
+        <h1 className="font-display text-4xl text-slateink">Organizer Dashboard</h1>
+        <p className="mt-1 text-sm text-slate-600">Track community health with sentiment insights, friction signals, and churn risk indicators.</p>
 
-          <aside className="space-y-3">
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Agents</h2>
-              <div className="mt-3 space-y-3">
-                {agents.map((agent) => (
-                  <div key={agent.id} className="rounded-xl border border-ember-100 p-3">
-                    <p className="font-semibold text-slateink">{agent.name}</p>
-                    <p className="mt-1 text-xs text-slate-600">{agent.backstory}</p>
-                    <p className="mt-1 text-xs text-slate-500">Status: {agent.status}</p>
-                    {agent.status !== "retired" && (
-                      <button className="mt-2 rounded-lg bg-slateink px-3 py-1 text-xs font-semibold text-white" onClick={() => retireAgent(agent.id)}>
-                        Retire Agent
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </aside>
+        <div className="mt-6">
+          <SentimentDashboard report={report} loading={loading} error={error} onRefresh={refresh} />
         </div>
+
+        <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
+          <h2 className="font-display text-2xl text-slateink">Demo Scenario Seeder</h2>
+          <p className="mt-1 text-sm text-slate-600">Populate this community with realistic demo activity scenarios.</p>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button className="btn-secondary" onClick={() => runScenario("regular")} disabled={!!seeding}>
+              {seeding === "regular" ? "Seeding..." : "1) Regular Sentiment"}
+            </button>
+            <button className="btn-secondary" onClick={() => runScenario("uptrend")} disabled={!!seeding}>
+              {seeding === "uptrend" ? "Seeding..." : "2) Growth Uptrend"}
+            </button>
+            <button className="btn-secondary" onClick={() => runScenario("decline")} disabled={!!seeding}>
+              {seeding === "decline" ? "Seeding..." : "3) Attention Decline"}
+            </button>
+          </div>
+
+          {seedError && <p className="mt-3 text-sm text-red-600">{seedError}</p>}
+          {seedResult && (
+            <p className="mt-3 text-sm text-slate-700">
+              Seeded {seedResult.scenario}: {seedResult.posts_created} posts, {seedResult.comments_created} comments, {seedResult.post_votes_submitted} post votes.
+            </p>
+          )}
+        </section>
       </main>
     </div>
   );

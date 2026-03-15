@@ -30,7 +30,6 @@ export default function PostCard({ post, slug, onVote }) {
           )}
           <div className="mt-3 flex items-center gap-4 text-xs text-slate-500">
             <span>{post.comment_count} comments</span>
-            {post.has_factcheck && <span className="font-semibold text-spruce">Fact-checked</span>}
           </div>
         </div>
       </div>

@@ -4,7 +4,6 @@ from db import queries
 from models.community import CommunityCreate
 from routers.deps import get_current_user_id, get_optional_user_id
 from services import agent_service
-from scheduler import schedule_community
 
 router = APIRouter(prefix="/communities", tags=["communities"])
 
@@ -27,14 +26,7 @@ async def create_community(payload: CommunityCreate, user_id: str = Depends(get_
             raise HTTPException(status_code=409, detail="Community slug already taken")
         raise
 
-    agents = await agent_service.generate_agents(
-        community=community,
-        ideal_member_description=payload.ideal_member_description,
-    )
-
-    schedule_community(community.id)
-
-    return queries.to_community_response(community, agents)
+    return queries.to_community_response(community, [])
 
 
 @router.get("/{slug}")

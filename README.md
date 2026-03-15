@@ -138,6 +138,29 @@ cp .env.example .env.local       # fill in your keys
 npm run dev                       # http://localhost:5173
 ```
 
+### Demo Data Seeder
+
+Run one of the scenario scripts (with backend running at localhost:8000):
+
+```bash
+cd backend/scripts
+
+# 1) Regular sentiment: 8 posts, 5 comments/post
+python demo_seed_regular.py
+
+# 2) Rising momentum: more posts, ~4x interaction volume
+python demo_seed_uptrend.py
+
+# 3) Decline: low activity and negative sentiment
+python demo_seed_decline.py
+```
+
+Optional flags for all scripts:
+
+```bash
+python demo_seed_regular.py --api-base http://127.0.0.1:8000/api/v1 --slug my-demo-slug --seed 123
+```
+
 ---
 
 ## Environment Variables

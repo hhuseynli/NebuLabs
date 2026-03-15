@@ -13,7 +13,7 @@ export function useFeed(slug, onEvent) {
     source.onopen = () => setConnected(true);
     source.onerror = () => setConnected(false);
 
-    ["new_post", "new_comment", "factcheck_fired", "phase_change", "agent_retired"].forEach((type) => {
+    ["new_post", "new_comment", "phase_change", "agent_retired"].forEach((type) => {
       source.addEventListener(type, (event) => {
         let parsed = {};
         try {

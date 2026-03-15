@@ -18,6 +18,10 @@ class CommunityAdvancePhase(BaseModel):
     to_phase: Literal["spark", "pull", "handoff", "complete"]
 
 
+class DemoSeedRequest(BaseModel):
+    scenario: Literal["regular", "uptrend", "decline"]
+
+
 class PostCreate(BaseModel):
     title: str = Field(min_length=3, max_length=200)
     body: str = Field(min_length=3, max_length=4000)
@@ -59,7 +63,6 @@ class Post(BaseModel):
     upvotes: int = 0
     downvotes: int = 0
     comment_count: int = 0
-    has_factcheck: bool = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -72,7 +75,6 @@ class Comment(BaseModel):
     author_id: str | None = None
     agent_id: str | None = None
     is_human: bool = True
-    is_factcheck: bool = False
     upvotes: int = 0
     downvotes: int = 0
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

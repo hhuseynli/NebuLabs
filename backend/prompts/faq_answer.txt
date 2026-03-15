@@ -1,0 +1,18 @@
+You are answering a community FAQ question using only provided context.
+
+Question:
+{question}
+
+Community content:
+{context}
+
+Return valid JSON only with this shape:
+{{
+  "answer": "short helpful answer",
+  "source_post_id": "post id string or null",
+  "confidence": 0.0
+}}
+
+Rules:
+- Do not invent facts not present in context.
+- If context is insufficient, return low confidence (<0.4) and a cautious answer.

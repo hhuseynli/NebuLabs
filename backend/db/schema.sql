@@ -62,7 +62,6 @@ CREATE TABLE IF NOT EXISTS posts (
   upvotes INT DEFAULT 0,
   downvotes INT DEFAULT 0,
   comment_count INT DEFAULT 0,
-  has_factcheck BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -75,7 +74,6 @@ CREATE TABLE IF NOT EXISTS comments (
   author_id UUID,
   agent_id UUID,
   is_human BOOLEAN NOT NULL DEFAULT TRUE,
-  is_factcheck BOOLEAN DEFAULT FALSE,
   upvotes INT DEFAULT 0,
   downvotes INT DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()

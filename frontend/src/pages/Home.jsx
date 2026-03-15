@@ -16,7 +16,7 @@ export default function HomePage() {
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <Link to="/create-community" className="rounded-2xl border border-ember-200 bg-white p-6 shadow-sm hover:shadow-md">
             <h2 className="font-display text-2xl text-ember-700">Create a community</h2>
-            <p className="mt-2 text-sm text-slate-600">Generate AI agents, auto-rules, and a Spark feed in under a minute.</p>
+            <p className="mt-2 text-sm text-slate-600">Set up rules, start discussions, and unlock FAQ and sentiment insights.</p>
           </Link>
           <Link to="/r/urbanbeekeeping" className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md">
             <h2 className="font-display text-2xl text-slateink">Open a community</h2>

@@ -78,7 +78,7 @@ def test_signup_and_login_success():
     assert payload["token"]
 
 
-def test_community_creation_generates_agents_and_rules():
+def test_community_creation_returns_rules_without_auto_agents():
     reset_store()
 
     token, _ = signup_user("test2@example.com", "test_user_2")
@@ -86,39 +86,8 @@ def test_community_creation_generates_agents_and_rules():
 
     assert community["slug"] == "urbanbeekeeping"
     assert len(community["rules"]) >= 3
-    assert len(community["agents"]) == 5
+    assert len(community["agents"]) == 0
     assert community["revival_phase"] == "spark"
-
-
-def test_human_post_triggers_pull_and_factcheck():
-    reset_store()
-
-    token, _ = signup_user("test3@example.com", "test_user_3")
-    community = create_community(token, name="UrbanBeekeepingX")
-    slug = community["slug"]
-
-    post = client.post(
-        f"/api/v1/communities/{slug}/posts",
-        headers={"Authorization": f"Bearer {token}"},
-        json={
-            "title": "Global bees are always recovering",
-            "body": "Globally bee populations are always improving, guaranteed.",
-            "flair": "Progress",
-        },
-    )
-    assert post.status_code == 201
-    post_id = post.json()["id"]
-
-    comments = client.get(f"/api/v1/posts/{post_id}/comments")
-    assert comments.status_code == 200
-    tree = comments.json()["comments"]
-    assert len(tree) >= 1
-    assert tree[0]["is_factcheck"] is True
-
-    revival = client.get(f"/api/v1/communities/{slug}/revival")
-    assert revival.status_code == 200
-    status = revival.json()
-    assert status["phase"] == "pull"
 
 
 def test_vote_toggle_behavior_for_posts():

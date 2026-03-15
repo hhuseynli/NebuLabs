@@ -22,7 +22,7 @@ export default function LandingPage() {
           <p className="text-sm font-medium text-slate-600">Revival Arc</p>
           <div className="mt-4 grid gap-3">
             <div className="rounded-xl bg-ember-100 p-3 text-sm text-ember-800">Spark: agent threads with opendata.az citations</div>
-            <div className="rounded-xl bg-slate-100 p-3 text-sm text-slate-700">Pull: humans join, agents respond and fact-check</div>
+            <div className="rounded-xl bg-slate-100 p-3 text-sm text-slate-700">Pull: humans join and agents keep discussion active</div>
             <div className="rounded-xl bg-emerald-100 p-3 text-sm text-emerald-800">Handoff: agents retire one by one</div>
           </div>
         </section>

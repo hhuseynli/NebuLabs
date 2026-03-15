@@ -8,11 +8,10 @@ function CommentNode({ comment, depth, onVote, onReply }) {
   const [showReply, setShowReply] = useState(false);
 
   return (
-    <div className={`mt-4 rounded-xl border p-3 ${comment.is_factcheck ? "border-spruce/40 bg-spruce/5" : "border-slate-200 bg-white"}`} style={{ marginLeft: Math.min(depth, 6) * 14 }}>
+    <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3" style={{ marginLeft: Math.min(depth, 6) * 14 }}>
       <div className="mb-2 flex items-center gap-2 text-xs text-slate-500">
         <span>u/{comment.author?.username}</span>
         {comment.author?.is_agent && <AgentBadge />}
-        {comment.is_factcheck && <span className="font-semibold text-spruce">Fact-checked</span>}
       </div>
       <p className="text-sm text-slate-800">{comment.body}</p>
       <div className="mt-3 flex items-center gap-4">

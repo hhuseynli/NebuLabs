@@ -157,7 +157,6 @@ def _post_to_payload(post: Post) -> dict[str, Any]:
         "upvotes": post.upvotes,
         "downvotes": post.downvotes,
         "comment_count": post.comment_count,
-        "has_factcheck": post.has_factcheck,
         "created_at": post.created_at.isoformat(),
     }
 
@@ -172,7 +171,6 @@ def _comment_to_payload(comment: Comment) -> dict[str, Any]:
         "author_id": comment.author_id,
         "agent_id": comment.agent_id,
         "is_human": comment.is_human,
-        "is_factcheck": comment.is_factcheck,
         "upvotes": comment.upvotes,
         "downvotes": comment.downvotes,
         "created_at": comment.created_at.isoformat(),
@@ -239,7 +237,6 @@ def _row_to_post(row: dict[str, Any]) -> Post:
         upvotes=row.get("upvotes", 0),
         downvotes=row.get("downvotes", 0),
         comment_count=row.get("comment_count", 0),
-        has_factcheck=row.get("has_factcheck", False),
         created_at=row.get("created_at"),
     )
 
@@ -254,7 +251,6 @@ def _row_to_comment(row: dict[str, Any]) -> Comment:
         author_id=row.get("author_id"),
         agent_id=row.get("agent_id"),
         is_human=row.get("is_human", True),
-        is_factcheck=row.get("is_factcheck", False),
         upvotes=row.get("upvotes", 0),
         downvotes=row.get("downvotes", 0),
         created_at=row.get("created_at"),
@@ -515,7 +511,6 @@ def insert_comment(
     is_human: bool,
     author_id: str | None,
     agent_id: str | None,
-    is_factcheck: bool,
 ) -> Comment:
     comment = Comment(
         id=_new_id(),
@@ -526,7 +521,6 @@ def insert_comment(
         is_human=is_human,
         author_id=author_id,
         agent_id=agent_id,
-        is_factcheck=is_factcheck,
     )
     store.comments_by_id[comment.id] = comment
     if post_id not in store.comments_by_post:
@@ -534,9 +528,7 @@ def insert_comment(
     store.comments_by_post[post_id].append(comment.id)
     post = store.posts_by_id[post_id]
     post.comment_count += 1
-    if is_factcheck:
-        post.has_factcheck = True
-        _sb_upsert("posts", _post_to_payload(post))
+    _sb_upsert("posts", _post_to_payload(post))
     _sb_upsert("comments", _comment_to_payload(comment))
     return comment
 
@@ -799,11 +791,15 @@ def serialize_post(*, post: Post, user_id: str | None = None, include_body: bool
         user_vote = store.post_votes[post.id].get(user_id)
 
     community = store.communities_by_id.get(post.community_id)
+    community_slug = community.slug if community else None
+    if community_slug is None:
+        resolved = get_community_by_id(post.community_id)
+        community_slug = resolved.slug if resolved else None
 
     payload = {
         "id": post.id,
         "community_id": post.community_id,
-        "community_slug": community.slug if community else None,
+        "community_slug": community_slug,
         "title": post.title,
         "flair": post.flair,
         "opendata_citation": post.opendata_citation,
@@ -811,7 +807,6 @@ def serialize_post(*, post: Post, user_id: str | None = None, include_body: bool
         "upvotes": post.upvotes,
         "downvotes": post.downvotes,
         "comment_count": post.comment_count,
-        "has_factcheck": post.has_factcheck,
         "user_vote": user_vote,
         "created_at": post.created_at,
     }
@@ -832,7 +827,6 @@ def serialize_comment(*, comment: Comment, user_id: str | None = None) -> dict[s
         "author": to_comment_author(comment=comment),
         "upvotes": comment.upvotes,
         "downvotes": comment.downvotes,
-        "is_factcheck": comment.is_factcheck,
         "parent_comment_id": comment.parent_comment_id,
         "user_vote": user_vote,
         "created_at": comment.created_at,
@@ -854,6 +848,39 @@ def build_comment_tree(*, post_id: str, user_id: str | None = None) -> list[dict
         return out
 
     return walk(None)
+
+
+def clear_community_content(*, community_id: str) -> None:
+    """Remove all posts, comments, and votes for one community.
+
+    This is used by demo seeding to replace old scenario data with fresh data.
+    """
+    client = get_supabase_client()
+    if client:
+        try:
+            client.table("votes").delete().eq("community_id", community_id).execute()
+            client.table("comments").delete().eq("community_id", community_id).execute()
+            client.table("posts").delete().eq("community_id", community_id).execute()
+        except Exception:
+            # Keep local flow resilient if remote deletion fails.
+            pass
+
+    post_ids = list(store.posts_by_community.get(community_id, []))
+    for post_id in post_ids:
+        comment_ids = list(store.comments_by_post.get(post_id, []))
+        for comment_id in comment_ids:
+            store.comments_by_id.pop(comment_id, None)
+            store.comment_votes.pop(comment_id, None)
+        store.comments_by_post.pop(post_id, None)
+        store.posts_by_id.pop(post_id, None)
+        store.post_votes.pop(post_id, None)
+
+    store.posts_by_community[community_id] = []
+
+    community = store.communities_by_id.get(community_id)
+    if community:
+        community.human_activity_ratio = 0.0
+        _sb_upsert("communities", _community_to_payload(community))
 
 
 def get_user_by_username(username: str) -> User | None:

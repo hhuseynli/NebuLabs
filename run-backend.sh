@@ -9,8 +9,11 @@ if [[ ! -d "$BACKEND_DIR" ]]; then
   exit 1
 fi
 
-# Auto-activate workspace virtualenv when present.
-if [[ -f "$ROOT_DIR/.venv/bin/activate" ]]; then
+# Auto-activate backend virtualenv first (preferred), then workspace-level virtualenv.
+if [[ -f "$BACKEND_DIR/.venv/bin/activate" ]]; then
+  # shellcheck disable=SC1091
+  source "$BACKEND_DIR/.venv/bin/activate"
+elif [[ -f "$ROOT_DIR/.venv/bin/activate" ]]; then
   # shellcheck disable=SC1091
   source "$ROOT_DIR/.venv/bin/activate"
 fi

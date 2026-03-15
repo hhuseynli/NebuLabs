@@ -16,6 +16,27 @@ export default function CreateCommunityPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  function validate(values) {
+    const name = values.name.trim();
+    const description = values.description.trim();
+    const ideal = values.ideal_member_description.trim();
+
+    if (!name || !description || !ideal) {
+      return "All fields are required.";
+    }
+    if (name.length < 3 || name.length > 80) {
+      return "Community name must be between 3 and 80 characters.";
+    }
+    if (description.length < 10 || description.length > 500) {
+      return "Description must be between 10 and 500 characters.";
+    }
+    if (ideal.length < 10 || ideal.length > 300) {
+      return "Ideal member description must be between 10 and 300 characters.";
+    }
+
+    return "";
+  }
+
   return (
     <div className="min-h-screen bg-canvas">
       <Navbar />
@@ -28,9 +49,20 @@ export default function CreateCommunityPage() {
             onSubmit={async (e) => {
               e.preventDefault();
               setError("");
+
+              const validationError = validate(form);
+              if (validationError) {
+                setError(validationError);
+                return;
+              }
+
               setLoading(true);
               try {
-                const data = await api.createCommunity(token, form);
+                const data = await api.createCommunity(token, {
+                  name: form.name.trim(),
+                  description: form.description.trim(),
+                  ideal_member_description: form.ideal_member_description.trim(),
+                });
                 navigate(`/r/${data.slug}`);
               } catch (err) {
                 setError(err.message);

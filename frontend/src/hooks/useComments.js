@@ -6,6 +6,34 @@ export function useComments(postId, token) {
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  const applyVoteToComments = useCallback((nodes, commentId, nextVote) => {
+    return (nodes || []).map((comment) => {
+      if (comment.id === commentId) {
+        const prevVote = Number(comment.user_vote || 0);
+        let upvotes = Number(comment.upvotes || 0);
+        let downvotes = Number(comment.downvotes || 0);
+
+        if (prevVote === 1) upvotes = Math.max(0, upvotes - 1);
+        if (prevVote === -1) downvotes = Math.max(0, downvotes - 1);
+        if (nextVote === 1) upvotes += 1;
+        if (nextVote === -1) downvotes += 1;
+
+        return {
+          ...comment,
+          upvotes,
+          downvotes,
+          user_vote: nextVote,
+          replies: applyVoteToComments(comment.replies || [], commentId, nextVote),
+        };
+      }
+
+      return {
+        ...comment,
+        replies: applyVoteToComments(comment.replies || [], commentId, nextVote),
+      };
+    });
+  }, []);
+
   const fetchComments = useCallback(async () => {
     if (!postId) return;
     setLoading(true);
@@ -27,8 +55,17 @@ export function useComments(postId, token) {
   }
 
   async function voteComment(commentId, value) {
-    await api.voteComment(token, commentId, value);
-    await fetchComments();
+    const nextVote = Number(value || 0);
+    const previousComments = comments;
+
+    setComments((current) => applyVoteToComments(current, commentId, nextVote));
+
+    try {
+      await api.voteComment(token, commentId, nextVote);
+    } catch (error) {
+      setComments(previousComments);
+      throw error;
+    }
   }
 
   return { comments, loading, createComment, voteComment, refetch: fetchComments };

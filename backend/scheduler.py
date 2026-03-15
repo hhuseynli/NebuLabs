@@ -57,7 +57,6 @@ async def run_spark_cycle(community_id: str) -> None:
                 is_human=False,
                 author_id=None,
                 agent_id=agent.id,
-                is_factcheck=False,
             )
             await feed_service.publish(
                 community.id,

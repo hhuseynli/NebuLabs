@@ -1,7 +1,12 @@
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api/v1";
+let unauthorizedHandler = null;
 
 function authHeaders(token) {
   return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export function setAuthFailureHandler(handler) {
+  unauthorizedHandler = typeof handler === "function" ? handler : null;
 }
 
 function getValidationMessage(detail) {
@@ -34,6 +39,9 @@ async function request(path, { method = "GET", token, body } = {}) {
     if (response.status === 401) {
       localStorage.removeItem("kindling_user");
       localStorage.removeItem("kindling_token");
+      if (unauthorizedHandler) {
+        unauthorizedHandler();
+      }
     }
 
     const validationMessage = getValidationMessage(data.detail);
@@ -57,6 +65,9 @@ export const api = {
   getComments: (postId, token) => request(`/posts/${postId}/comments`, { token }),
   createComment: (token, postId, payload) => request(`/posts/${postId}/comments`, { method: "POST", token, body: payload }),
   voteComment: (token, commentId, value) => request(`/comments/${commentId}/vote`, { method: "POST", token, body: { value } }),
+  askFAQ: (slug, question) => request(`/communities/${slug}/faq/ask?q=${encodeURIComponent(question)}`),
+  getSentiment: (token, slug) => request(`/communities/${slug}/sentiment`, { token }),
+  seedDemoScenario: (token, slug, scenario) => request(`/communities/${slug}/demo-seed`, { method: "POST", token, body: { scenario } }),
   getAgents: (slug) => request(`/communities/${slug}/agents`),
   updateAgent: (token, slug, agentId, status) => request(`/communities/${slug}/agents/${agentId}`, { method: "PATCH", token, body: { status } }),
   getRevival: (slug) => request(`/communities/${slug}/revival`),

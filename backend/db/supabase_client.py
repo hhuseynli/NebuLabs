@@ -2,18 +2,28 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
+
 try:
-    from supabase import Client, create_client
-    SupabaseClient = Client
+    from supabase import create_client
 except Exception:  # pragma: no cover
-    SupabaseClient = Any
     create_client = None  # type: ignore[assignment]
 
 
+def _load_backend_env() -> None:
+    # Ensure DB helpers and scripts load backend/.env even when not started via main.py.
+    env_path = Path(__file__).resolve().parents[1] / ".env"
+    load_dotenv(env_path, override=False)
+
+
+_load_backend_env()
+
+
 @lru_cache(maxsize=1)
-def get_supabase_client() -> SupabaseClient | None:
+def get_supabase_client() -> Any | None:
     url = os.getenv("SUPABASE_URL")
     key = os.getenv("SUPABASE_SERVICE_KEY")
     if not url or not key or create_client is None:

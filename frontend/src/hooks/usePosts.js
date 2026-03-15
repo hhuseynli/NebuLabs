@@ -6,6 +6,28 @@ export function usePosts(slug, sort, token) {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  const applyVoteToPost = useCallback((list, postId, nextVote) => {
+    return list.map((post) => {
+      if (post.id !== postId) return post;
+
+      const prevVote = Number(post.user_vote || 0);
+      let upvotes = Number(post.upvotes || 0);
+      let downvotes = Number(post.downvotes || 0);
+
+      if (prevVote === 1) upvotes = Math.max(0, upvotes - 1);
+      if (prevVote === -1) downvotes = Math.max(0, downvotes - 1);
+      if (nextVote === 1) upvotes += 1;
+      if (nextVote === -1) downvotes += 1;
+
+      return {
+        ...post,
+        upvotes,
+        downvotes,
+        user_vote: nextVote,
+      };
+    });
+  }, []);
+
   const fetchPosts = useCallback(async () => {
     if (!slug) return;
     setLoading(true);
@@ -28,5 +50,19 @@ export function usePosts(slug, sort, token) {
     await fetchPosts();
   }
 
-  return { posts, loading, createPost, refetch: fetchPosts };
+  async function votePost(postId, value) {
+    const nextVote = Number(value || 0);
+    const previousPosts = posts;
+
+    setPosts((current) => applyVoteToPost(current, postId, nextVote));
+
+    try {
+      await api.votePost(token, postId, nextVote);
+    } catch (error) {
+      setPosts(previousPosts);
+      throw error;
+    }
+  }
+
+  return { posts, loading, createPost, votePost, refetch: fetchPosts };
 }

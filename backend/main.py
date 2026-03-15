@@ -7,12 +7,12 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers.agents import router as agents_router
 from routers.auth import router as auth_router
 from routers.communities import router as communities_router
-from routers.feed import router as feed_router
+from routers.demo import router as demo_router
+from routers.faq import router as faq_router
 from routers.posts import router as posts_router
-from routers.revival import router as revival_router
+from routers.sentiment import router as sentiment_router
 from routers.users import router as users_router
 from scheduler import start_scheduler
 
@@ -65,10 +65,10 @@ app.add_middleware(
 
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(communities_router, prefix="/api/v1")
+app.include_router(demo_router, prefix="/api/v1")
 app.include_router(posts_router, prefix="/api/v1")
-app.include_router(agents_router, prefix="/api/v1")
-app.include_router(revival_router, prefix="/api/v1")
-app.include_router(feed_router, prefix="/api/v1")
+app.include_router(faq_router, prefix="/api/v1")
+app.include_router(sentiment_router, prefix="/api/v1")
 app.include_router(users_router, prefix="/api/v1")
 
 

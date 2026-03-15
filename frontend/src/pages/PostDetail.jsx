@@ -13,7 +13,26 @@ export default function PostDetailPage() {
   const { token } = useAuth();
   const [post, setPost] = useState(null);
   const [comment, setComment] = useState("");
-  const { comments, createComment, voteComment, refetch } = useComments(id, token);
+  const { comments, createComment, voteComment } = useComments(id, token);
+
+  function applyVoteToPost(currentPost, nextVote) {
+    if (!currentPost) return currentPost;
+    const prevVote = Number(currentPost.user_vote || 0);
+    let upvotes = Number(currentPost.upvotes || 0);
+    let downvotes = Number(currentPost.downvotes || 0);
+
+    if (prevVote === 1) upvotes = Math.max(0, upvotes - 1);
+    if (prevVote === -1) downvotes = Math.max(0, downvotes - 1);
+    if (nextVote === 1) upvotes += 1;
+    if (nextVote === -1) downvotes += 1;
+
+    return {
+      ...currentPost,
+      upvotes,
+      downvotes,
+      user_vote: nextVote,
+    };
+  }
 
   useEffect(() => {
     api.getPost(id, token).then((data) => {
@@ -42,18 +61,19 @@ export default function PostDetailPage() {
               downvotes={post.downvotes}
               userVote={post.user_vote}
               onVote={async (value) => {
-                await api.votePost(token, post.id, value);
-                setPost(await api.getPost(id, token));
+                const nextVote = Number(value || 0);
+                const previous = post;
+                setPost((current) => applyVoteToPost(current, nextVote));
+                try {
+                  await api.votePost(token, post.id, nextVote);
+                } catch {
+                  setPost(previous);
+                }
               }}
             />
             <div className="flex-1">
               <h1 className="font-display text-3xl text-slateink">{post.title}</h1>
               <p className="mt-3 text-sm leading-6 text-slate-700">{post.body}</p>
-              {post.has_factcheck && (
-                <p className="mt-4 rounded-lg border border-spruce/30 bg-spruce/10 px-3 py-2 text-xs font-semibold text-spruce">
-                  A claim in this thread was fact-checked with opendata.az.
-                </p>
-              )}
             </div>
           </div>
         </article>
@@ -65,7 +85,6 @@ export default function PostDetailPage() {
             if (!comment.trim()) return;
             await createComment({ body: comment, parent_comment_id: null });
             setComment("");
-            await refetch();
           }}
         >
           <input className="input" placeholder="Add a comment" value={comment} onChange={(e) => setComment(e.target.value)} />
@@ -76,11 +95,9 @@ export default function PostDetailPage() {
           comments={comments}
           onVote={async (commentId, value) => {
             await voteComment(commentId, value);
-            await refetch();
           }}
           onReply={async (body, parentId) => {
             await createComment({ body, parent_comment_id: parentId });
-            await refetch();
           }}
         />
       </main>
