@@ -1,1 +1,10 @@
--r backend/requirements.txt
+fastapi
+uvicorn[standard]
+apscheduler
+python-dotenv
+pydantic
+email-validator
+httpx
+google-genai
+pytest
+supabase
