@@ -1,15 +1,19 @@
 # Hosting & Infrastructure — Cultify
 
+**Status**: Optional. This is for production deployment. For local development, see [README.md](../README.md).
+
+---
+
 ## Stack Summary
 
 | Layer | Platform | Why |
 |-------|----------|-----|
 | Frontend | Vercel | Zero-config Vite deploys, CDN, free tier |
-| Backend | Railway | No sleep on Hobby plan, git-push deploys, SSE-friendly |
+| Backend | Railway | No sleep on Hobby plan, git-push deploys, native Python support |
 | Database + Auth | Supabase | Postgres + JWT auth + RLS, free tier |
-| AI | Google Gemini API | Fast, generous free tier (1,500 req/day Flash) |
+| AI | Groq API | Fast inference, generous free tier, no rate-limit surprises |
 
-**Why Railway over Render**: Render's free tier spins down after inactivity — 50s cold start breaks a live demo. Railway Hobby ($5/month, includes $5 credit) stays alive.
+**Why Railway over Render**: Render's free tier spins down after inactivity — 50s cold start. Railway Hobby ($5/month, includes $5 credit) stays alive.
 
 ---
 
@@ -26,7 +30,7 @@ echo "web: uvicorn main:app --host 0.0.0.0 --port \$PORT" > Procfile
 
 **Environment variables** (Railway dashboard → service → Variables):
 ```
-GEMINI_API_KEY=
+GROQ_API_KEY=                          # from console.groq.com
 SUPABASE_URL=
 SUPABASE_SERVICE_KEY=
 APP_MODE=supabase
@@ -106,18 +110,18 @@ export const supabase = createClient(
 
 ---
 
-## Gemini API Setup
+## Groq API Setup
 
 ```
-1. aistudio.google.com → Get API Key → Create API key
-2. Add to Railway env vars: GEMINI_API_KEY=your_key
+1. console.groq.com → Sign up (free) → Create API key
+2. Add to Railway env vars: GROQ_API_KEY=your_key
 ```
 
 ```bash
-pip install google-generativeai
+pip install groq
 ```
 
-Free tier limits: 1,500 req/day on Flash, 50/day on Pro. Flash is used by default for all active features.
+Free tier: Excellent for development. Groq's free tier supports generous request rates without typical enterprise rate-limiting surprises. Model: `llama-3.3-70b-versatile` (active), `mixtral-8x7b` (alternative).
 
 ---
 
@@ -180,11 +184,11 @@ npm run dev                     # localhost:5173
 
 **`.env.example` (backend)**:
 ```
-GEMINI_API_KEY=
+GROQ_API_KEY=
 SUPABASE_URL=
 SUPABASE_SERVICE_KEY=
-APP_MODE=local
-ENVIRONMENT=development
+APP_MODE=supabase
+ENVIRONMENT=production
 USE_MOCK=false
 ```
 

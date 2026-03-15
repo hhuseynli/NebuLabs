@@ -8,10 +8,12 @@ Cultify is a Reddit-style community platform for tech communities (GDGs, Stack O
 3. **Fundraiser Agent** — autonomously detects funding needs and creates fundraising posts
 
 ## Stack
-- **Frontend**: React (Vite) + TailwindCSS + React Router v6 → Vercel
-- **Backend**: Python 3.11 + FastAPI → Railway
-- **Database**: Supabase (Postgres + Auth + RLS)
-- **AI**: Google Gemini API (`gemini-2.0-flash` default, `gemini-2.0-pro` for agent generation)
+- **Frontend**: React (Vite) + TailwindCSS + React Router v6 (local dev)
+- **Backend**: Python 3.11 + FastAPI (local dev)
+- **Database**: In-memory (local) + optional Supabase
+- **AI**: Groq API (`llama-3.3-70b-versatile` active, `mixtral-8x7b` available)
+- **Rate Limiting**: slowapi (10/min FAQ, 10/min sentiment, 6/min fundraiser)
+- **Caching**: 5-min in-memory TTL on FAQ responses
 - **Scheduling**: APScheduler in-process (fundraiser agent loop)
 
 ---

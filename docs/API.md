@@ -1,8 +1,9 @@
 # API Reference — Cultify
 
-**Base URL**: `https://your-backend.railway.app/api/v1`
-**Auth**: `Authorization: Bearer <supabase_jwt>`
-**Tenant scope**: All endpoints scoped by `community_id` via RLS.
+**Base URL (Local)**: `http://localhost:8000`  
+**Base URL (Production)**: `https://your-backend.railway.app`  
+**Auth**: `Authorization: Bearer <supabase_jwt>` (optional for read endpoints)  
+**Tenant Isolation**: Scoped by `community_id` via RLS when using Supabase mode
 
 ---
 
