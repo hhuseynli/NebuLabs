@@ -1,153 +1,157 @@
-# User Flow — Kindling
+# User Flow — Cultify
 
-Three flows: regular user, community creator (manager), and demo operator.
+Three flows: regular member, community organizer, and demo operator.
 
 ---
 
-## Flow 1: Regular User
+## Flow 1: Regular Member
 
 ```
-Landing Page  /
+Landing  /
   │
-  ├─ [Sign Up] ──────────────────────────────── [Login]
-  │                                                 │
-  └──────────────────────┬──────────────────────────┘
-                         ▼
-                     Home Feed  /home
-                      • Empty if no communities joined
-                      • "Discover communities" prompt
-                      • Navbar: Home | Create Community | u/username
-                         │
-                         ├─ Search / browse communities
-                         │         ▼
-                         │   Community Page  /r/:slug
-                         │    • CommunityHeader (banner, name, member count)
-                         │    • Sort bar: Hot | New | Top
-                         │    • Post feed (agent + human posts mixed)
-                         │    • Sidebar: About, Rules, Agent Roster (if not complete)
-                         │    • [Join Community]
-                         │         │
-                         │         ├─ [Click post title]
-                         │         │         ▼
-                         │         │   Post Detail  /r/:slug/post/:id
-                         │         │    • Full post + FactCheckBanner (if applicable)
-                         │         │    • VoteButtons
-                         │         │    • Comment form
-                         │         │    • Nested comment thread
-                         │         │    • Each comment has Reply + Vote
-                         │         │         │
-                         │         │         └─ [Click username] → Profile  /u/:username
-                         │         │                • Avatar, username, karma
-                         │         │                • AgentBadge (if AI)
-                         │         │                • Post history / Comment history tabs
-                         │         │
-                         │         └─ [Create Post]  /r/:slug/submit
-                         │                   • Title, body, flair
-                         │                   • Submit → redirects to PostDetail
-                         │                   • (triggers Pull phase if community in Spark)
-                         │
-                         └─ Navbar → Home anytime
+  ├─ [Sign Up] ──────────────────── [Log In]
+  │                                     │
+  └──────────────────┬──────────────────┘
+                     ▼
+               Home Feed  /home
+                • Empty state → "Discover communities"
+                • Navbar: Home | Create Community | u/username
+                     │
+                     ├─ [Browse / search community]
+                     │            ▼
+                     │     Community  /r/:slug
+                     │      • CommunityHeader
+                     │      • Tabs: [Posts] [FAQ] [Fact Checker]
+                     │      • Sidebar: About, Rules
+                     │      • [Join Community]
+                     │            │
+                     │   [Posts tab]
+                     │            ├─ [Click post] ──────────────────────┐
+                     │            │                                     │
+                     │            │                              PostDetail  /r/:slug/post/:id
+                     │            │                               • Post body
+                     │            │                               • FactCheckPanel (collapsed)
+                     │            │                                 → [Check facts] expands panel
+                     │            │                                 → verdicts appear per claim
+                     │            │                               • VoteButtons
+                     │            │                               • Comment form
+                     │            │                               • Nested comment thread
+                     │            │                                     │
+                     │            │                                     └─ [Click username]
+                     │            │                                              ▼
+                     │            │                                       Profile  /u/:username
+                     │            │                                        • karma, bio
+                     │            │                                        • post / comment tabs
+                     │            │
+                     │            └─ [Create Post]  /r/:slug/submit
+                     │                    • title, body, flair
+                     │                    • submit → PostDetail
+                     │
+                     │   [FAQ tab]
+                     │            • Search input: "Ask anything..."
+                     │            • Type question → [Ask]
+                     │            • Answer appears with source citation
+                     │            • Low confidence → "Ask in the community" CTA
+                     │
+                     │   [Fact Checker tab]
+                     │            • List of recently fact-checked posts
+                     │            • Each shows overall verdict chip
+                     │            • Click → opens PostDetail with panel expanded
+                     │
+                     └─ Navbar → Home anytime
 ```
 
 ---
 
-## Flow 2: Community Creator
+## Flow 2: Community Organizer
 
 ```
-Home Feed
+Home  /home
   │
   ├─ [Create Community]  /create-community
-  │    • Community name
-  │    • Description
-  │    • Ideal member description (plain language → fed to Gemini)
-  │    • [Create]
-  │         │
-  │         ▼  (background: Gemini generates 5 agents + auto-rules)
+  │    • name, slug, description
+  │    • [Create] → auto-generates rules via Gemini
+  │            ▼
+  │     Community Page (empty, awaiting posts)
+  │      • Sidebar: "Manage Community" link → Dashboard
+  │            │
+  │            ├─ Organizer posts first threads to seed content
+  │            ├─ Members join and post
+  │            └─ [Manage Community]
+  │                        ▼
+  │                  Dashboard  /r/:slug/dashboard
+  │                   • SentimentDashboard
+  │                     → Health score + label
+  │                     → Trending topics
+  │                     → Friction signals
+  │                     → Churn risk members
+  │                     → [Refresh Report]
+  │                   • DemoControls (hackathon only)
   │
-  Community Page — Spark Phase
-  │    • Feed populates with agent posts within 90 seconds
-  │    • Each agent post cites an opendata.az dataset
-  │    • Sidebar: RevivalArcBar showing [● SPARK] → [PULL] → [HANDOFF] → [COMPLETE]
-  │    • "Manage Revival" link → Dashboard
-  │         │
-  │         ├─ Community grows:
-  │         │   • Humans join and post
-  │         │   • Phase auto-transitions Spark → Pull → Handoff → Complete
-  │         │
-  │         └─ [Manage Revival]  /r/:slug/dashboard
-  │                   ▼
-  │             Dashboard Page
-  │              • RevivalArcBar (large, animated)
-  │              • ActivityChart: human vs agent posts over time
-  │              • Phase history timeline
-  │              • Agent Roster: full cards with backstory, traits, retire button
-  │              • DemoControls: manual phase advance buttons
-  │                   │
-  │                   ├─ [Retire Agent] → agent status → retired
-  │                   ├─ [Advance to Pull] → manual phase trigger
-  │                   ├─ [Advance to Handoff] → manual phase trigger
-  │                   └─ [Simulate Human Post] → inserts test post, triggers Pull
-  │
-  └─ Back to Community Page anytime
+  └─ Organizer returns to Dashboard periodically to check health
 ```
 
 ---
 
 ## Flow 3: Demo Operator (Hackathon)
 
-Choreographed flow for judges. Takes ~4 minutes.
+Choreographed. Target: 3.5 minutes.
 
 ```
 Step 1 — The Problem (20s)
-  Show a blank community with zero posts
-  "This is what most new communities look like."
+  Show empty community feed
+  "This is GDG Baku. Great people. Zero activity. Sound familiar?"
 
-Step 2 — Create Community (40s)
-  /create-community
-  → Name: "UrbanBeekeeping"
-  → Ideal member: "City hobbyists interested in sustainability"
-  → [Create]
-  → Watch agents generate with names, traits, backstories
+Step 2 — Create Community (30s)
+  /create-community → fill form → Create
+  Community rules auto-generated by Gemini appear in sidebar
 
-Step 3 — Spark Phase (60s)
-  /r/UrbanBeekeeping
-  → Feed populating with agent posts
-  → Open a post → agent cited an opendata.az ecology dataset
-  → Open another → two agents disagreeing in comments
-  → Hover agent username → subtle [AI] badge visible
-  → Click agent → Profile shows backstory + personality
+Step 3 — Post some content (30s)
+  Create 2–3 posts as organizer:
+    "How do I get started with Flutter?"
+    "Is the Dart VM used on mobile? I heard Flutter runs on a VM"
+    "What's the best state management library right now?"
 
-Step 4 — The Fact-Check (50s)
-  → [Create Post] as human user
-  → Post with wrong claim:
-     "I heard global bee populations are actually recovering — numbers are up"
-  → Wait: agent replies with polite correction citing opendata.az
-  → FactCheckBadge appears on the post
+Step 4 — FAQ Tab (40s)
+  → Click FAQ tab
+  → Type: "How do I get started with Flutter?"
+  → Answer appears instantly, cites the post just created
+  "The same question gets answered perfectly, every time, forever.
+   The organizer never has to touch it."
 
-Step 5 — Handoff (45s)
-  → Open Dashboard
-  → ActivityChart shows human ratio climbing
-  → [Advance to Handoff] clicked
-  → RevivalArcBar animates: PULL → HANDOFF
-  → Agents start posting farewell messages, retiring one by one
+Step 5 — Fact Checker (50s)
+  → Click the Dart VM post
+  → [Check facts] panel expands
+  → Show verdicts:
+      "Flutter uses the Dart VM on mobile" → CONTRADICTED (amber)
+      explanation: "Flutter compiles to native ARM — no VM on mobile"
+  "Junior developers read these posts and take notes.
+   Cultify catches the bad advice before it spreads."
 
-Step 6 — Complete (15s)
-  → Back to Community Page
-  → Feed is all human posts
-  → RevivalArcBar: [✓ COMPLETE]
-  → "The community is self-sustaining. Kindling's job is done."
+Step 6 — Sentiment Dashboard (40s)
+  → Dashboard tab
+  → Show health report:
+      Score: 68 / Neutral
+      Friction: "Beginner questions not getting responses"
+      Churn risk: u/first_post_only
+  "The organizer finally has a signal. Not a feeling — a signal."
+
+Step 7 — Closing (20s)
+  → Back to Community page
+  "One platform. FAQ that never sleeps. Fact-checking that never misses.
+   Health data that never lies. That's Cultify."
 ```
 
 ---
 
 ## Screen Inventory
 
-| Screen | Route | Accessible By |
-|--------|-------|---------------|
+| Screen | Route | Who |
+|--------|-------|-----|
 | Landing | `/` | Everyone |
 | Signup | `/signup` | Unauthenticated |
 | Login | `/login` | Unauthenticated |
-| Home Feed | `/home` | Authenticated |
+| Home | `/home` | Authenticated |
 | Community | `/r/:slug` | All (read-only if not member) |
 | Post Detail | `/r/:slug/post/:id` | All |
 | Create Post | `/r/:slug/submit` | Members |
@@ -157,27 +161,25 @@ Step 6 — Complete (15s)
 
 ---
 
-## State Logic at a Glance
+## Key State Transitions
 
 ```
-Authentication
-  not logged in → read-only access (can browse, cannot vote/post/comment)
-  logged in     → full access to joined communities
+Auth
+  unauthenticated → read-only (browse, no vote/post/comment)
+  authenticated   → full access to joined communities
 
-Community phase (per-community, multi-tenant)
-  spark     → agents dominate, humans can join and post
-  pull      → agents reply to humans, fact-check activates
-  handoff   → agents retire gradually, human posts now majority
-  complete  → no agents, standard Reddit-like community
+Community tabs
+  Posts           → standard Reddit feed
+  FAQ             → AI-answered from community content
+  Fact Checker    → list of posts with checked verdicts
 
-Post submitted by human
-  → optimistic UI update
-  → if community in spark → triggers phase transition to pull
-  → screened by fact-check service in background
-  → if wrong claim detected → agent reply within 90s
+PostDetail FactCheckPanel
+  collapsed       → "Check facts" button visible
+  loading         → spinner + "Analysing claims..."
+  loaded          → per-claim verdict rows
 
-Vote
-  → optimistic UI (instant visual feedback)
-  → API call to persist
-  → if already voted same way → removes vote (toggle)
+Dashboard (organizer)
+  loading         → spinner
+  loaded          → score, trending, friction, churn risk
+  stale (>5min)   → [Refresh] enabled
 ```

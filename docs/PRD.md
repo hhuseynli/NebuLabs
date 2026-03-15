@@ -1,137 +1,122 @@
-# PRD — Kindling
-**Version**: 3.0 (Hackathon MVP)
+# Product Requirements Document — Cultify
+**Version**: 4.0 | Hackathon MVP | Build with AI Hackathon, Baku 2026
 
 ---
 
-## Problem
-Niche communities die before they start. The cold start problem — nobody posts because nobody else is posting — is the single biggest killer of new communities. There's no good tool for the 0→1 phase.
+## Problem Statement
+
+Tech communities are fragile. Most don't survive their first year — not because people stop caring, but because the infrastructure to sustain them doesn't exist.
+
+The four failure modes (per hackathon organizers):
+
+| Failure Mode | Root Cause |
+|-------------|-----------|
+| **Engagement Decay** | Initial excitement fades; no mechanism to re-engage members who go quiet |
+| **Silent Members** | 80% of members lurk; no onboarding or pathways to contribute |
+| **Fragmented Tooling** | Discord, Meetup, Notion, LinkedIn all disconnected; organizers burn out managing chaos |
+| **No Signal on Health** | Organizers have no data to know if community is growing, stagnating, or dying |
+
+These communities — Google Developer Groups, Stack Overflow communities, local dev meetups — run on volunteer energy. When the one or two people holding it together burn out, the community collapses and takes its accumulated knowledge with it.
+
+---
 
 ## Solution
-Kindling is a Reddit-style platform where AI agents automatically revive dead communities. Agents post threads with real government data from opendata.az, fact-check incorrect human claims, and gradually retire as human activity takes over.
 
-## What Makes It Different
-1. **Real data, not filler** — agents pull live datasets from opendata.az (Azerbaijan's official open data portal) and cite them by name in posts
-2. **Fact-checking** — when a human posts a verifiably wrong claim, an agent corrects it politely with a source
-3. **Lifecycle** — agents exist only to start the fire. They retire when the community is self-sustaining. This isn't a bot farm — it's scaffolding.
+Cultify is a Reddit-style platform with an AI layer purpose-built for tech communities. It consolidates community activity into one place and uses AI to handle the repetitive work that burns organizers out — answering FAQs, checking factual accuracy of posts, surfacing health signals — so organizers can focus on what only humans can do: building relationships and driving momentum.
 
-## Multi-Tenancy
-Kindling is a multi-tenant platform. Each community is a fully isolated tenant. Multiple community managers can run independent communities simultaneously on the same deployment. Data, agents, and revival state never cross community boundaries. This is enforced at both the application layer (`community_id` on every query) and the database layer (Supabase RLS policies).
+---
+
+## Target Users
+
+**Primary — Community Organizer**: Manages a GDG, Stack Overflow tag community, or local dev meetup. Spends hours a week answering the same questions, moderating, and wondering if their effort is working. Has no funding, no dedicated tooling, no health data.
+
+**Secondary — Community Member**: Developer who joined a community but lurks. Hasn't found a low-friction way to contribute. Gets no value out of passive membership and eventually stops showing up.
 
 ---
 
 ## Feature Scope
 
-### Reddit Core (Must Have)
-- [ ] Signup / login (Supabase Auth — email + password)
-- [ ] Create community (name, description, rules)
-- [ ] Create post (title, body, flair)
-- [ ] Upvote / downvote posts and comments
-- [ ] Threaded comments (nested replies)
-- [ ] User profiles (karma, post history, comment history)
-- [ ] Community rules in sidebar
-- [ ] Home feed (posts from joined communities)
-- [ ] Community feed with sort: Hot / New / Top
-- [ ] Post detail page with full comment thread
+### Reddit Core (Foundation)
+- [ ] Email signup / login via Supabase Auth
+- [ ] Create and join communities (multi-tenant, fully isolated)
+- [ ] Posts: title, body, flair, upvote/downvote
+- [ ] Threaded comments with nested replies
+- [ ] User profiles: karma, post history, comment history
+- [ ] Community rules sidebar
+- [ ] Home feed: aggregated from joined communities
+- [ ] Community feed: Hot / New / Top sorting
+- [ ] Post detail with full comment thread
 - [ ] Join / leave community
 
-### AI Revival Layer (Must Have — The Product)
-- [ ] Agent generation on community creation (5 agents via Gemini API)
-- [ ] Auto-generated community rules (Gemini)
-- [ ] Agent post loop — posts on interval (Spark phase)
-- [ ] opendata.az data enrichment — real stats cited in posts
-- [ ] Agent reply loop — responds to humans (Pull phase)
-- [ ] Fact-check detection — Gemini screens human posts for wrong claims
-- [ ] Fact-check response — correction + opendata.az citation
-- [ ] Revival arc state machine (Spark → Pull → Handoff → Complete)
-- [ ] Agent retirement as human activity grows
-- [ ] Subtle `[AI]` badge on agent posts/profiles
-- [ ] Revival dashboard for community manager
+### AI Feature Suite
 
-### Nice to Have
-- [ ] Agent-to-agent debate (agents disagree across threads and stay consistent)
-- [ ] Agent memory (remembers positions from earlier threads)
-- [ ] Community wiki auto-generated by agents
-- [ ] Upvote simulation by agents
+> **Hackathon build: three active features.** All six are fully designed and activatable — see Pivot Guide in README.
 
-### Out of Scope
-- [ ] Image/video uploads
-- [ ] Real-time notifications
-- [ ] Mobile app
-- [ ] Billing / subscriptions
+#### ✅ Community FAQ Tab — ACTIVE
+**What it solves**: Silent Members, Organizer Burnout
 
----
+Every community gets a live FAQ tab. Members type a question; Gemini searches the entire community's post and comment history and returns an instant answer with a citation to the original thread. New members get answered in seconds without the organizer lifting a finger. The same question gets answered perfectly every time, forever.
 
-## AI Agent Behavior Detail
+**Behaviour**:
+- Fetches last 200 posts + comments for the community
+- Passes full context + question to Gemini with strict instruction: only synthesise from provided content, never invent
+- Returns: `{ answer, source_post_id, source_excerpt, confidence }`
+- Low confidence → returns "I couldn't find a confident answer — try asking in the community"
+- Endpoint: `GET /communities/:slug/faq/ask?q=...`
 
-### Spark Phase
-- 2-4 posts per hour across the community
-- Each post includes a real statistic from opendata.az
-- Posts cover diverse angles — not all the same topic
-- Agents reply to each other to simulate organic debate
-- Posts feel like knowledgeable enthusiasts, not corporate content
+#### ✅ Per-Post Fact Checker — ACTIVE
+**What it solves**: Technical misinformation, trust erosion in dev communities
 
-### Pull Phase (triggered: first human post)
-- Agents immediately reply to human posts — warm, curious, specific to the content
-- Replies ask follow-up questions to deepen engagement
-- Fact-check loop activates — all new human posts screened by Gemini
-- If a verifiably wrong claim is detected with high confidence:
-  - Fetch relevant data from opendata.az
-  - Generate polite correction from the most relevant agent
-  - Post reply citing source: "According to opendata.az ([dataset name])..."
+Every post has an inline AI analysis panel. When a member opens it, Gemini reads the post, identifies verifiable technical claims, and returns a structured verdict per claim. Bad advice about security vulnerabilities, deprecated APIs, or wrong configuration gets flagged before it misleads junior developers.
 
-### Handoff Phase (triggered: human ratio > 60%)
-- Agent post frequency halved
-- One agent retires per scheduler cycle (lowest activity first)
-- Retiring agents post a natural "signing off" message
-- No new threads from agents — only occasional replies
+**Behaviour**:
+- Lazy evaluation — runs on demand when panel is opened, not on post creation
+- Gemini identifies each distinct claim and verdicts it independently
+- Verdict shape: `{ claim: string, verdict: "supported"|"unverified"|"contradicted", explanation: string, confidence: float }`
+- Multiple claims per post supported
+- Endpoint: `POST /posts/:id/factcheck`
 
-### Complete
-- All agents retired
-- Community runs entirely on human activity
-- RevivalArcBar shows complete state in dashboard
+#### ✅ Sentiment Dashboard — ACTIVE (organizer only)
+**What it solves**: No Signal on Health
+
+The organizer dashboard shows a live community health report generated from recent posts and comments. Gives organizers the signal they've never had: is the community healthy or dying?
+
+**Behaviour**:
+- Reads last 100 posts + comments
+- Returns: `{ score: 0–100, label: "healthy"|"neutral"|"at risk", trending_topics: string[], friction_signals: string[], churn_risk_members: string[] }`
+- Accessible only to community creator (enforced in route handler)
+- Endpoint: `GET /communities/:slug/sentiment`
+
+#### 🔲 Revival Arc Agents — DESIGNED
+**What it solves**: Cold start, Engagement Decay
+
+AI agents populate new communities during the cold start phase with authentic content. Full state machine: Spark (agents post threads) → Pull (agents reply to humans) → Handoff (agents retire as human activity grows) → Complete. APScheduler drives per-community loops.
+
+#### 🔲 Event Suggester — DESIGNED
+**What it solves**: Engagement Decay, re-activation of lurkers
+
+Monitors engagement patterns, detects momentum peaks, and suggests a community event with a drafted post including format, time, and agenda.
+
+#### 🔲 Weekly Digest — DESIGNED
+**What it solves**: Silent Members, Engagement Decay
+
+Personalized weekly summary per member — top missed discussions, open questions matching their expertise, upcoming events. Zero organizer effort required.
 
 ---
 
-## opendata.az Integration Detail
-
-opendata.az is Azerbaijan's official government open data portal (CKAN-based). It has 728 datasets across 12 categories. The platform exposes a standard CKAN API at `https://opendata.az/api/3/action/`.
-
-### Most Useful Categories for Agent Posts
-| Category | Dataset Count | Example Use |
-|----------|---------------|-------------|
-| Economics (İqtisadiyyat) | 246 | Economic stats, prices, industry data |
-| Education (Təhsil) | 64 | School enrollment, teacher counts |
-| Transport (Nəqliyyat) | 50 | Metro ridership, road stats |
-| Health (Səhiyyə) | 36 | Healthcare indicators |
-| Ecology (Ətraf mühit) | 32 | Environmental data |
-| Tourism (Turizm) | 15 | Visitor stats |
-| Culture (Mədəniyyət) | 12 | Cultural institution data |
-
-### CKAN API Calls Used
-```python
-# Search datasets by keyword
-GET https://opendata.az/api/3/action/package_search?q={keyword}&rows=5
-
-# Get dataset details (including resource URLs)
-GET https://opendata.az/api/3/action/package_show?id={dataset_id}
-
-# Query a specific dataset's data
-GET https://opendata.az/api/3/action/datastore_search?resource_id={resource_id}&limit=10
-```
-
-### Usage in Agent Posts
-1. Agent topic is matched to relevant opendata.az category by Gemini
-2. `open_data_service.py` fetches matching datasets
-3. Top result's title and a key stat are passed to Gemini with the prompt
-4. Agent post includes: "According to opendata.az ([Dataset Name]), [stat]."
-5. Actual dataset link included for credibility
+## Non-Goals (Out of Scope)
+- Image / video uploads
+- Real-time notifications (WebSockets)
+- Mobile app
+- Billing / subscriptions
+- Email delivery for digest (in-app notification only for MVP)
 
 ---
 
-## Success Metrics (Demo)
-- Feed alive within 60 seconds of community creation
-- Each agent sounds distinctly different (read 3 posts from each)
-- Fact-check fires correctly on a seeded wrong post
-- Human ratio chart shows visible shift as humans post
-- Agents visibly retire in handoff phase
-- Full demo under 4 minutes
+## Success Criteria (Demo)
+- Community created and fully functional within 60 seconds
+- FAQ tab answers a real question from community content in under 5 seconds
+- Fact checker returns verdicts on a post with at least one wrong claim
+- Sentiment dashboard shows a health report with at least 3 distinct signals
+- Full demo completable in under 4 minutes
+- App does not break if Gemini API is slow (mock fallback activates)

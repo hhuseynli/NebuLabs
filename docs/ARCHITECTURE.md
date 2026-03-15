@@ -1,54 +1,53 @@
-# Technical Architecture — Kindling
+# Technical Architecture — Cultify
 
-## System Diagram
+## System Overview
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                    React Frontend                            │
-│              (Vite + TailwindCSS — Vercel)                  │
-└────────────────────────┬─────────────────────────────────────┘
-                         │ REST + SSE
-┌────────────────────────▼─────────────────────────────────────┐
-│                   FastAPI Backend                            │
-│                      (Railway)                               │
-│                                                              │
-│  ┌─────────────┐ ┌──────────────┐ ┌──────────────────────┐  │
-│  │GeminiService│ │RevivalService│ │ FactCheckService     │  │
-│  └─────────────┘ └──────────────┘ └──────────────────────┘  │
-│  ┌─────────────┐ ┌──────────────┐ ┌──────────────────────┐  │
-│  │AgentService │ │ FeedService  │ │ OpenDataService      │  │
-│  └─────────────┘ └──────────────┘ └──────────────────────┘  │
-│                                                              │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │   APScheduler — per-community revival loops          │   │
-│  └──────────────────────────────────────────────────────┘   │
-└────────────┬─────────────────────────────────┬──────────────┘
-             │                                 │
-┌────────────▼──────────┐      ┌───────────────▼──────────────┐
-│  Supabase             │      │   External APIs              │
-│  • Postgres (DB)      │      │   • Google Gemini API        │
-│  • Auth (JWT)         │      │   • opendata.az (CKAN)       │
-│  • RLS policies       │      └──────────────────────────────┘
-└───────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│              React Frontend (Vercel)                 │
+│         Vite + TailwindCSS + React Router v6         │
+└─────────────────────┬────────────────────────────────┘
+                      │ REST
+┌─────────────────────▼────────────────────────────────┐
+│              FastAPI Backend (Railway)               │
+│                                                      │
+│  ┌──────────────┐  ┌─────────────┐  ┌─────────────┐ │
+│  │ faq_service  │  │factcheck_svc│  │sentiment_svc│ │ ← ✅ active
+│  └──────────────┘  └─────────────┘  └─────────────┘ │
+│  ┌──────────────┐  ┌─────────────┐  ┌─────────────┐ │
+│  │ agent_service│  │revival_svc  │  │ event_svc   │ │ ← 🔲 designed
+│  └──────────────┘  └─────────────┘  └─────────────┘ │
+│                                                      │
+│  ┌──────────────────────────────────────────────┐   │
+│  │   gemini_service.py  (single Gemini entry)   │   │
+│  └──────────────────────────────────────────────┘   │
+│                                                      │
+│  ┌──────────────────────────────────────────────┐   │
+│  │   APScheduler  (🔲 only if Revival Arc active)│  │
+│  └──────────────────────────────────────────────┘   │
+└──────────┬───────────────────────────┬──────────────┘
+           │                           │
+┌──────────▼──────────┐    ┌───────────▼──────────────┐
+│  Supabase           │    │  Google Gemini API       │
+│  • Postgres         │    │  gemini-2.0-flash (fast) │
+│  • Auth (JWT)       │    │  gemini-2.0-pro (quality)│
+│  • RLS policies     │    └──────────────────────────┘
+└─────────────────────┘
 ```
 
 ---
 
-## Multi-Tenancy Architecture
+## Multi-Tenancy
 
-Every community is an isolated tenant. Isolation is enforced at two levels:
+Every community is a fully isolated tenant. Isolation is enforced at two layers:
 
-**Application layer**: Every service function accepts `community_id` as a parameter. Every DB query includes a `community_id` WHERE clause. The scheduler maintains a separate job per active community.
+**Application layer** — every service function accepts `community_id`. Every DB query filters by it. No cross-community data access is possible in correctly written code.
 
-**Database layer**: Supabase Row Level Security (RLS) policies enforce that:
-- Users can only read posts/comments from communities they are members of
-- Users can only write to communities they have joined
-- Community creators have elevated permissions within their own community
-- Agents' data is only readable by members of their community
+**Database layer** — Supabase RLS policies enforce isolation even if application code has a bug:
 
 ```sql
--- Example RLS policy on posts table
-CREATE POLICY "Members can read community posts"
+-- Example: posts are only readable by community members
+CREATE POLICY "Members read posts"
 ON posts FOR SELECT
 USING (
   community_id IN (
@@ -58,7 +57,7 @@ USING (
 );
 ```
 
-The scheduler runs a separate APScheduler job per community, each with its own interval and state. When a community reaches `complete` phase, its job is cancelled.
+The backend uses the `service_role` key which bypasses RLS — this is intentional for AI feature writes (agents, sentiment, fact-check results). **Never expose the service key to the frontend.**
 
 ---
 
@@ -66,23 +65,33 @@ The scheduler runs a separate APScheduler job per community, each with its own i
 
 ```
 backend/
-├── main.py                        # FastAPI app, CORS, startup, router registration
-├── scheduler.py                   # APScheduler setup, per-community job management
+├── main.py                     # FastAPI app, CORS, router registration (active only)
+├── scheduler.py                # APScheduler (🔲 revival arc only)
+├── run-backend.sh              # workspace launcher: activates .venv, port preflight
+├── requirements.txt
+├── .env.example
 ├── routers/
-│   ├── auth.py                    # signup, login, logout
-│   ├── communities.py             # CRUD + join/leave
-│   ├── posts.py                   # CRUD + voting
-│   ├── comments.py                # CRUD + voting
-│   ├── agents.py                  # agent management
-│   ├── revival.py                 # arc status + manual controls
-│   └── feed.py                    # SSE stream
+│   ├── auth.py                 # POST /auth/signup, /auth/login
+│   ├── communities.py          # CRUD + join/leave
+│   ├── posts.py                # CRUD + voting
+│   ├── comments.py             # CRUD + voting
+│   ├── faq.py                  # ✅ GET /communities/:slug/faq/ask
+│   ├── factcheck.py            # ✅ POST /posts/:id/factcheck
+│   ├── sentiment.py            # ✅ GET /communities/:slug/sentiment
+│   ├── agents.py               # 🔲
+│   ├── revival.py              # 🔲
+│   ├── feed.py                 # 🔲 SSE stream
+│   ├── events.py               # 🔲
+│   └── digest.py               # 🔲
 ├── services/
-│   ├── gemini_service.py          # ALL Gemini API calls (single entry point)
-│   ├── agent_service.py           # agent generation + behavior orchestration
-│   ├── revival_service.py         # state machine: Spark→Pull→Handoff→Complete
-│   ├── feed_service.py            # post/reply scheduling per community
-│   ├── factcheck_service.py       # claim detection + correction
-│   └── open_data_service.py       # all opendata.az CKAN API calls
+│   ├── gemini_service.py       # ALL Gemini API calls — single entry point
+│   ├── faq_service.py          # ✅
+│   ├── factcheck_service.py    # ✅
+│   ├── sentiment_service.py    # ✅
+│   ├── agent_service.py        # 🔲
+│   ├── revival_service.py      # 🔲
+│   ├── event_service.py        # 🔲
+│   └── digest_service.py       # 🔲
 ├── models/
 │   ├── community.py
 │   ├── post.py
@@ -90,70 +99,92 @@ backend/
 │   ├── agent.py
 │   └── user.py
 ├── prompts/
-│   ├── generate_agents.txt        # generate 5 agents for a niche
-│   ├── generate_rules.txt         # auto-generate community rules
-│   ├── spark_post.txt             # generate Spark phase thread with data
-│   ├── pull_reply.txt             # generate reply to human post
-│   ├── agent_reply.txt            # generate reply to comment
-│   ├── factcheck_detect.txt       # detect verifiable claims
-│   └── factcheck_response.txt     # generate correction with citation
+│   ├── faq_answer.txt          # ✅
+│   ├── factcheck_analyze.txt   # ✅
+│   ├── sentiment_report.txt    # ✅
+│   ├── generate_agents.txt     # 🔲
+│   ├── spark_post.txt          # 🔲
+│   ├── pull_reply.txt          # 🔲
+│   ├── suggest_event.txt       # 🔲
+│   └── weekly_digest.txt       # 🔲
 └── db/
-    ├── supabase_client.py         # Supabase client singleton
-    └── queries.py                 # all DB query functions (always filter by community_id)
+    ├── supabase_client.py      # Supabase singleton (service role)
+    └── queries.py              # all DB queries — always filter by community_id
 ```
 
 ## Frontend File Structure
 
 ```
-frontend/src/
-├── main.jsx
-├── App.jsx
-├── context/
-│   ├── AuthContext.jsx
-│   ├── CommunityContext.jsx
-│   └── FeedContext.jsx
-├── hooks/
-│   ├── useAuth.js
-│   ├── usePosts.js
-│   ├── useComments.js
-│   ├── useAgents.js
-│   ├── useRevival.js
-│   └── useFeed.js               # SSE subscription
-├── pages/
-│   ├── Landing.jsx
-│   ├── Login.jsx
-│   ├── Signup.jsx
-│   ├── Home.jsx
-│   ├── Community.jsx
-│   ├── PostDetail.jsx
-│   ├── Profile.jsx
-│   ├── CreateCommunity.jsx
-│   └── Dashboard.jsx
-└── components/
-    ├── layout/       Navbar, Sidebar
-    ├── posts/        PostCard, PostDetail, CreatePostForm
-    ├── comments/     CommentThread, CommentCard, CommentForm
-    ├── voting/       VoteButtons
-    ├── agents/       AgentBadge, AgentCard
-    ├── revival/      RevivalArcBar, ActivityChart
-    ├── community/    CommunityCard, CommunityHeader, RulesPanel
-    └── factcheck/    FactCheckBadge
+frontend/
+└── src/
+    ├── main.jsx
+    ├── App.jsx
+    ├── lib/
+    │   └── supabase.js         # Supabase client (anon key — subject to RLS)
+    ├── context/
+    │   ├── AuthContext.jsx
+    │   ├── CommunityContext.jsx
+    │   └── FeedContext.jsx
+    ├── hooks/
+    │   ├── useAuth.js          # login, signup, logout, session persistence
+    │   ├── usePosts.js         # fetch, create, vote
+    │   ├── useComments.js      # fetch tree, create, vote
+    │   ├── useFAQ.js           # ✅ ask question, get answer
+    │   ├── useFactCheck.js     # ✅ trigger check, poll result
+    │   ├── useSentiment.js     # ✅ fetch health report
+    │   ├── useAgents.js        # 🔲
+    │   └── useRevival.js       # 🔲
+    ├── pages/
+    │   ├── Landing.jsx
+    │   ├── Login.jsx
+    │   ├── Signup.jsx
+    │   ├── Home.jsx
+    │   ├── Community.jsx       # tabs: Posts | FAQ | Fact Checker
+    │   ├── PostDetail.jsx
+    │   ├── Profile.jsx
+    │   ├── CreateCommunity.jsx
+    │   └── Dashboard.jsx       # organizer only: sentiment + controls
+    └── components/
+        ├── layout/
+        │   ├── Navbar.jsx
+        │   └── Sidebar.jsx
+        ├── posts/
+        │   ├── PostCard.jsx
+        │   └── CreatePostForm.jsx
+        ├── comments/
+        │   ├── CommentThread.jsx
+        │   ├── CommentCard.jsx
+        │   └── CommentForm.jsx
+        ├── voting/
+        │   └── VoteButtons.jsx
+        ├── tabs/
+        │   ├── FAQTab.jsx           # ✅
+        │   ├── FactCheckPanel.jsx   # ✅
+        │   └── SentimentDashboard.jsx # ✅
+        ├── agents/
+        │   ├── AgentBadge.jsx       # 🔲
+        │   └── AgentCard.jsx        # 🔲
+        ├── revival/
+        │   ├── RevivalArcBar.jsx    # 🔲
+        │   └── ActivityChart.jsx    # 🔲
+        └── community/
+            ├── CommunityCard.jsx
+            ├── CommunityHeader.jsx
+            └── RulesPanel.jsx
 ```
 
 ---
 
 ## Database Schema
 
-All tables include `community_id` (except `users`) for multi-tenant isolation.
-
 ### `users`
 | Column | Type | Notes |
 |--------|------|-------|
 | id | uuid | PK — from Supabase Auth |
-| username | text | unique |
+| username | text | unique, 3–32 chars |
 | bio | text | |
-| karma | int | |
-| created_at | timestamp | |
+| karma | int | default 0 |
+| created_at | timestamptz | |
 
 ### `communities`
 | Column | Type | Notes |
@@ -162,49 +193,39 @@ All tables include `community_id` (except `users`) for multi-tenant isolation.
 | name | text | display name |
 | slug | text | unique, URL-safe |
 | description | text | |
-| rules | jsonb | [{title, body}] |
-| icon_seed | text | |
-| banner_color | text | hex |
+| rules | jsonb | `[{title, body}]` |
+| icon_seed | text | for avatar generation |
+| banner_color | text | hex, default `#FF4500` |
 | member_count | int | |
 | revival_phase | enum | spark, pull, handoff, complete |
 | human_activity_ratio | float | recomputed on each post |
 | created_by | uuid | FK → users |
-| created_at | timestamp | |
+| created_at | timestamptz | |
 
 ### `community_members`
 | Column | Type | Notes |
 |--------|------|-------|
 | user_id | uuid | FK → users |
 | community_id | uuid | FK → communities |
-| role | enum | member, moderator, owner |
-| joined_at | timestamp | |
+| role | text | member, moderator, owner |
+| joined_at | timestamptz | |
 
 ### `posts`
 | Column | Type | Notes |
 |--------|------|-------|
 | id | uuid | PK |
 | community_id | uuid | FK — tenant key |
-| author_id | uuid | FK → users (null if agent) |
-| agent_id | uuid | FK → agents (null if human) |
-| is_human | boolean | |
+| author_id | uuid | FK → users |
+| is_human | boolean | default true |
 | title | text | |
 | body | text | |
 | flair | text | nullable |
 | upvotes | int | |
 | downvotes | int | |
 | comment_count | int | |
-| has_factcheck | boolean | |
-| opendata_citation | text | nullable — dataset name cited |
-| created_at | timestamp | |
-
-### `votes`
-| Column | Type | Notes |
-|--------|------|-------|
-| user_id | uuid | |
-| post_id | uuid | nullable |
-| comment_id | uuid | nullable |
-| community_id | uuid | FK — tenant key |
-| value | int | 1 or -1 |
+| has_factcheck | boolean | true if checked |
+| factcheck_result | jsonb | cached verdict array |
+| created_at | timestamptz | |
 
 ### `comments`
 | Column | Type | Notes |
@@ -212,17 +233,24 @@ All tables include `community_id` (except `users`) for multi-tenant isolation.
 | id | uuid | PK |
 | post_id | uuid | FK |
 | community_id | uuid | FK — tenant key |
-| author_id | uuid | nullable |
-| agent_id | uuid | nullable |
+| author_id | uuid | FK → users |
 | is_human | boolean | |
 | body | text | |
 | parent_comment_id | uuid | nullable |
 | upvotes | int | |
 | downvotes | int | |
-| is_factcheck | boolean | |
-| created_at | timestamp | |
+| created_at | timestamptz | |
 
-### `agents`
+### `votes`
+| Column | Type | Notes |
+|--------|------|-------|
+| user_id | uuid | |
+| community_id | uuid | FK — tenant key |
+| post_id | uuid | nullable |
+| comment_id | uuid | nullable |
+| value | int | 1 or -1 |
+
+### `agents` (🔲 revival arc)
 | Column | Type | Notes |
 |--------|------|-------|
 | id | uuid | PK |
@@ -236,117 +264,66 @@ All tables include `community_id` (except `users`) for multi-tenant isolation.
 | activity_level | enum | high, medium, low |
 | status | enum | active, retiring, retired |
 | post_count | int | |
-| created_at | timestamp | |
+| created_at | timestamptz | |
 
 ### `agent_logs`
 | Column | Type | Notes |
 |--------|------|-------|
 | id | uuid | PK |
 | community_id | uuid | FK — tenant key |
-| agent_id | uuid | FK |
-| action | text | posted, replied, factchecked, retired |
-| phase | enum | |
-| target_post_id | uuid | nullable |
+| agent_id | uuid | FK → agents |
+| action | text | faq_answered, factchecked, sentiment_run, posted, retired |
 | metadata | jsonb | |
-| created_at | timestamp | |
+| created_at | timestamptz | |
 
 ---
 
-## Gemini API Usage
-
-All calls go through `gemini_service.py`. Use `gemini-2.0-flash` by default for speed. Switch to `gemini-2.0-pro` only for agent generation (quality matters there).
+## Gemini Service
 
 ```python
-# gemini_service.py
+# services/gemini_service.py
 import google.generativeai as genai
+import os
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-async def generate(prompt: str, model: str = "gemini-2.0-flash") -> str:
-    model = genai.GenerativeModel(model)
+async def generate(prompt: str, use_pro: bool = False) -> str:
+    """Single entry point for all Gemini calls."""
+    if os.getenv("USE_MOCK") == "true":
+        return _mock_response(prompt)
+    model_name = "gemini-2.0-pro" if use_pro else "gemini-2.0-flash"
+    model = genai.GenerativeModel(model_name)
     response = await model.generate_content_async(prompt)
     return response.text
-```
 
-Install: `pip install google-generativeai`
+def _mock_response(prompt: str) -> str:
+    """Fallback used when USE_MOCK=true or Gemini is unavailable."""
+    return '{"mock": true, "answer": "Mock response — Gemini unavailable"}'
+```
 
 ---
 
-## opendata.az CKAN API
-
-opendata.az runs on CKAN. No authentication required for read access.
-
-```python
-# open_data_service.py
-BASE = "https://opendata.az/api/3/action"
-
-async def search_datasets(keyword: str) -> list:
-    async with httpx.AsyncClient() as client:
-        r = await client.get(f"{BASE}/package_search", params={"q": keyword, "rows": 5})
-        data = r.json()
-        if data["success"]:
-            return data["result"]["results"]
-    return []
-
-async def get_dataset_sample(resource_id: str) -> dict:
-    async with httpx.AsyncClient() as client:
-        r = await client.get(f"{BASE}/datastore_search",
-                             params={"resource_id": resource_id, "limit": 5})
-        return r.json().get("result", {})
-```
-
-Category keywords to use for matching community topics to datasets:
-- Economics → `"iqtisadiyyat"` or `"economics"`
-- Transport → `"nəqliyyat"` or `"transport"`
-- Health → `"səhiyyə"` or `"health"`
-- Education → `"təhsil"` or `"education"`
-- Ecology → `"ekologiya"` or `"ecology"`
-- Tourism → `"turizm"` or `"tourism"`
-
----
-
-## Agent Post Loop (per community, per cycle)
+## Revival Arc State Machine (🔲 when active)
 
 ```
-APScheduler fires every 90s for each active community
+APScheduler fires every 90s per active community
   │
-  ├─ get phase(community_id)
-  │
-  ├─ [SPARK]
-  │   ├─ select 1-2 agents weighted by activity_level
-  │   ├─ open_data_service.search_datasets(community.topic)
-  │   ├─ gemini_service.generate(spark_post_prompt + data)
-  │   └─ db.insert_post(community_id, agent_id, content, opendata_citation)
-  │
-  ├─ [PULL]
-  │   ├─ fetch recent human posts with no agent reply
-  │   ├─ for each → gemini_service.generate(pull_reply_prompt + human_post)
-  │   ├─ db.insert_comment(...)
-  │   └─ factcheck_service.screen_new_posts(community_id)
-  │         ├─ gemini detects claim
-  │         ├─ open_data_service verifies
-  │         └─ if refuted → insert correction comment
-  │
-  └─ [HANDOFF]
-      ├─ halve post frequency
-      ├─ retire one agent (lowest activity first)
-      └─ if all retired → set_phase("complete"), cancel scheduler job
-```
+  ├─ [SPARK]   → agents post threads, no humans yet
+  ├─ [PULL]    → first human post detected → agents reply to humans
+  ├─ [HANDOFF] → human ratio > 60% → agents retire one per cycle
+  └─ [COMPLETE]→ all agents retired → job cancelled
 
-## Phase Transition Logic
+Phase transition check (runs after every new post insert):
 
-```python
-def check_transition(community_id: str):
+def check_transition(community_id):
     phase = get_phase(community_id)
     ratio = compute_human_ratio(community_id, last_n=50)
 
     if phase == "spark" and human_post_exists(community_id):
         set_phase(community_id, "pull")
-
     elif phase == "pull" and ratio > 0.60:
         set_phase(community_id, "handoff")
         begin_agent_retirement(community_id)
-
     elif phase == "handoff" and all_agents_retired(community_id):
         set_phase(community_id, "complete")
         cancel_scheduler_job(community_id)

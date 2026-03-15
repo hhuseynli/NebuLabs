@@ -1,126 +1,187 @@
-# Copilot Instructions — Kindling
+# Copilot Instructions — Cultify
 
-## What Kindling Is
-Kindling is a Reddit-style community platform with an AI revival layer. It has all standard Reddit mechanics (posts, comments, upvotes, communities, profiles) plus AI agents that populate dead communities with authentic, data-backed content until human members take over.
+## What Cultify Is
+Cultify is a Reddit-style community platform built for tech communities (GDGs, Stack Overflow groups, local dev meetups). It has all standard Reddit mechanics plus an AI layer that reduces organizer burden, surfaces community health signals, and keeps members engaged — making tech communities impossible to abandon.
 
 ## Stack
-- **Frontend**: React (Vite), TailwindCSS, React Router v6 — deployed on Vercel
-- **Backend**: Python (FastAPI) — deployed on Railway
+- **Frontend**: React (Vite), TailwindCSS, React Router v6 — Vercel
+- **Backend**: Python (FastAPI) — Railway
 - **Database**: Supabase (Postgres + Auth + RLS)
-- **AI**: Google Gemini API (`gemini-2.0-flash` for speed, `gemini-2.0-pro` for quality)
-- **Open Data**: opendata.az (CKAN-based, Azerbaijan government datasets)
-- **Scheduling**: APScheduler (in-process with FastAPI)
+- **AI**: Google Gemini API (`gemini-2.0-flash` default, `gemini-2.0-pro` for quality-critical generation)
+- **Scheduling**: APScheduler in-process with FastAPI (only needed if Revival Arc is active)
 
 ---
 
-## Multi-Tenancy Model
+## Runtime Modes (APP_MODE)
+| Mode | Behaviour |
+|------|-----------|
+| `local` | In-memory storage, no Supabase required |
+| `hybrid` | Supabase with local token fallback |
+| `supabase` | Strict — no local fallback; surfaces provider error details on auth failure |
 
-Kindling is a multi-tenant platform. Each community is an isolated tenant. Every database table includes `community_id` and every query MUST filter by it. Agents, posts, comments, revival state, and logs all belong to exactly one community. The scheduler runs independent revival loops per community. Supabase RLS policies enforce tenant isolation at the database level — users can only read/write data in communities they belong to.
-
-**Rule**: Never write a DB query without a `community_id` filter where applicable.
+Set via `APP_MODE=` in `.env`.
 
 ---
 
-## Core Domain Concepts
+## Multi-Tenancy
+Every community is a fully isolated tenant. **Every DB query must filter by `community_id`.** Supabase RLS policies enforce this at the database layer. The backend uses the service role key which bypasses RLS for internal AI writes — never expose the service key to the frontend.
 
-### Communities (Tenants)
-- Each community is a fully isolated tenant
-- Has: `name`, `slug`, `description`, `rules[]`, `revival_phase`, `human_activity_ratio`
-- Revival phases: `spark` → `pull` → `handoff` → `complete`
+---
 
-### Posts & Comments
-- Posts have: `title`, `body`, `author_id`, `agent_id`, `is_human`, `upvotes`, `downvotes`, `flair`, `has_factcheck`
-- Comments are threaded via `parent_comment_id`
-- Both always carry `community_id` for tenant isolation
+## AI Feature Status
 
-### AI Agents
-- Generated per community using Gemini API
-- Each has: `name`, `backstory`, `personality_traits[]`, `opinion_set{}`, `expertise_areas[]`, `activity_level`, `status`
-- Subtle `[AI]` badge visible on hover/profile — never hidden, never loud
-- Agents never claim to be human if asked directly
+Only three features are active in the current build. All six are fully designed.
 
-### Revival Arc (State Machine)
-```
-SPARK → PULL → HANDOFF → COMPLETE
-```
-- **Spark**: Agents post original threads, cite opendata.az statistics
-- **Pull**: First human post detected → agents reply to humans, fact-check activates
-- **Handoff**: Human ratio > 60% → agents retire one by one
-- **Complete**: No agents, community self-sustaining
+| Feature | Status | Router | Service |
+|---------|--------|--------|---------|
+| Community FAQ Tab | ✅ ACTIVE | `routers/faq.py` | `services/faq_service.py` |
+| Per-Post Fact Checker | ✅ ACTIVE | `routers/factcheck.py` | `services/factcheck_service.py` |
+| Sentiment Dashboard | ✅ ACTIVE | `routers/sentiment.py` | `services/sentiment_service.py` |
+| Revival Arc Agents | 🔲 DESIGNED | `routers/agents.py` | `services/agent_service.py` |
+| Event Suggester | 🔲 DESIGNED | `routers/events.py` | `services/event_service.py` |
+| Weekly Digest | 🔲 DESIGNED | `routers/digest.py` | `services/digest_service.py` |
 
-### Fact-Checking
-- Every new human post screened for verifiable claims via Gemini
-- If a claim is verifiably wrong → relevant agent replies with correction + opendata.az citation
-- Only fires on high-confidence errors — no false positives
+**To activate a designed feature**: uncomment its router in `main.py`, ensure service + prompt files exist, update this table.
+**To deactivate an active feature**: comment out its router in `main.py`, leave service file in place.
 
-### opendata.az Integration
-- opendata.az is the official Azerbaijan government open data portal (CKAN-based)
-- Has 728 datasets across 12 categories: economics (246), transport (50), health (36), education (64), ecology (32), tourism (15), culture (12), trade (15), and more
-- Access via CKAN API: `https://opendata.az/api/3/action/`
-- Key endpoints: `package_search`, `datastore_search`, `package_show`
-- All data fetching goes through `services/open_data_service.py` only
-- Agents cite datasets as: "According to opendata.az ([dataset name])..."
+---
+
+## Active Feature Behaviour
+
+### FAQ Tab
+- Endpoint: `GET /communities/:slug/faq/ask?q=...`
+- Fetches last 200 posts + comments for community, passes with question to Gemini
+- Returns: `{ answer, source_post_id, confidence }`
+- Never invents — Gemini instructed to only synthesise from provided content
+- Prompt: `prompts/faq_answer.txt`
+
+### Per-Post Fact Checker
+- Endpoint: `POST /posts/:id/factcheck`
+- Lazy — only runs when user opens the panel, not on post creation
+- Gemini reads post body, identifies verifiable claims, returns verdict per claim
+- Verdict shape: `{ claim, verdict: "supported"|"unverified"|"contradicted", explanation, confidence }`
+- Prompt: `prompts/factcheck_analyze.txt`
+
+### Sentiment Dashboard
+- Endpoint: `GET /communities/:slug/sentiment`
+- Organizer-only — enforced in route handler by checking community creator
+- Reads last 100 posts + comments, returns health report
+- Returns: `{ score, trending_topics[], friction_signals[], churn_risk_members[] }`
+- Prompt: `prompts/sentiment_report.txt`
 
 ---
 
 ## Code Conventions
 
 ### Python (FastAPI)
-- `async/await` throughout — use `httpx.AsyncClient` for all HTTP calls
+- `async/await` throughout — use `httpx.AsyncClient` for all external HTTP
 - Pydantic v2 models for all request/response schemas
-- Thin route handlers — all logic in `/services/`
-- All Gemini API calls through `services/gemini_service.py` only
-- All opendata.az calls through `services/open_data_service.py` only
-- Prompts stored in `/prompts/` as `.txt` files — never hardcoded
-- Every query includes `community_id` filter (multi-tenancy enforcement)
-- Environment variables via `python-dotenv`
+- Thin routers — all business logic in `/services/`
+- All Gemini calls through `services/gemini_service.py` only — no direct API calls elsewhere
+- Prompts in `/prompts/*.txt` — never hardcode prompt strings inline
+- **Escape literal JSON braces in `.format()` prompts with `{{` and `}}`** — bare `{}` causes `KeyError`
+- Every query includes `community_id` filter — no exceptions
+- `python-dotenv` for env vars — never hardcode keys
 
 ### React
-- Functional components only
-- Custom hooks in `/hooks/` for all async/stateful logic
-- Context API for: auth, current community, feed
-- TailwindCSS only — no inline styles
-- Never fetch directly in components — always via a hook
+- Functional components only — no class components
+- Custom hooks in `/hooks/` for all async/stateful logic — never fetch directly in components
+- Context API for: auth state, current community, feed state
+- TailwindCSS only — no inline styles, no CSS modules
+- **On any 401 response → clear `localStorage` token and user, redirect to `/login`** — stale tokens cause cascading errors
+- FastAPI 422 returns `detail` as an array — convert to human-readable string before displaying; never show `[object Object]`
 
-### Database (Supabase)
-- All queries in `/db/queries.py`
-- RLS enabled on all tables — policies filter by `community_id` and `auth.uid()`
+### Database
+- All queries in `db/queries.py`
+- RLS enabled on all tenant tables
 - Timestamps always UTC
 
 ### General
-- Every agent action logged to `agent_logs`
-- Never expose raw Gemini API responses to frontend
-- Validate AI-generated content before DB insert
-- Mock data fallbacks for all AI calls — demo must survive slow API
+- Mock fallback in every AI service — demo must survive slow Gemini
+- `USE_MOCK=true` in `.env` forces mock mode globally
+- Never expose raw Gemini responses to frontend — always parse and validate first
+- Log AI actions to `agent_logs` table
 
 ---
 
-## Key Files Reference
+## Known Issues & Fixes
+
+| Symptom | Root Cause | Fix |
+|---------|-----------|-----|
+| `422` on signup | Pydantic constraints: username 3–32 chars, password ≥8 chars, valid email | Validate on frontend before submit |
+| `[object Object]` in error UI | FastAPI 422 `detail` is array, not string | `detail.map(e => e.msg).join(', ')` |
+| Intermittent `401` | Stale localStorage token | Clear token/user on every 401, redirect to login |
+| `KeyError` in prompt | Literal `{}` in `.format()` string | Replace `{` with `{{` and `}` with `}}` |
+| `Address already in use` | Port 8000 occupied | `PORT=8001 ./run-backend.sh` |
+
+---
+
+## File Reference
+
 ```
 backend/
-  main.py
-  scheduler.py
-  routers/          auth, communities, posts, comments, agents, revival, feed
-  services/         gemini_service, agent_service, revival_service,
-                    feed_service, factcheck_service, open_data_service
-  models/           community, post, comment, agent, user
-  prompts/          generate_agents, spark_post, pull_post, agent_reply,
-                    factcheck_detect, factcheck_response, generate_rules
-  db/               supabase_client, queries
+  main.py                    # register only ACTIVE routers here
+  run-backend.sh             # workspace-root launcher — auto-activates .venv, port preflight
+  scheduler.py               # only needed if Revival Arc active
+  routers/
+    auth.py
+    communities.py
+    posts.py
+    comments.py
+    faq.py                   # ✅
+    factcheck.py             # ✅
+    sentiment.py             # ✅
+    agents.py                # 🔲
+    revival.py               # 🔲
+    feed.py                  # 🔲
+    events.py                # 🔲
+    digest.py                # 🔲
+  services/
+    gemini_service.py        # ALL Gemini calls go here
+    faq_service.py           # ✅
+    factcheck_service.py     # ✅
+    sentiment_service.py     # ✅
+    agent_service.py         # 🔲
+    revival_service.py       # 🔲
+    event_service.py         # 🔲
+    digest_service.py        # 🔲
+  models/
+    community.py / post.py / comment.py / agent.py / user.py
+  prompts/
+    faq_answer.txt           # ✅
+    factcheck_analyze.txt    # ✅
+    sentiment_report.txt     # ✅
+    generate_agents.txt      # 🔲
+    spark_post.txt           # 🔲
+    pull_reply.txt           # 🔲
+    suggest_event.txt        # 🔲
+    weekly_digest.txt        # 🔲
+  db/
+    supabase_client.py
+    queries.py               # all DB queries — always filter by community_id
 
 frontend/src/
-  context/          AuthContext, CommunityContext, FeedContext
-  hooks/            useAuth, usePosts, useComments, useAgents, useRevival, useFeed
-  pages/            Landing, Login, Signup, Home, Community, PostDetail,
-                    Profile, CreateCommunity, Dashboard
-  components/       layout/, posts/, comments/, voting/, agents/,
-                    revival/, community/, factcheck/
+  context/    AuthContext.jsx, CommunityContext.jsx, FeedContext.jsx
+  hooks/      useAuth.js, usePosts.js, useComments.js,
+              useFAQ.js, useFactCheck.js, useSentiment.js,
+              useAgents.js (🔲), useRevival.js (🔲)
+  pages/      Landing, Login, Signup, Home, Community,
+              PostDetail, Profile, CreateCommunity, Dashboard
+  components/
+    layout/     Navbar.jsx, Sidebar.jsx
+    posts/      PostCard.jsx, CreatePostForm.jsx
+    comments/   CommentThread.jsx, CommentCard.jsx, CommentForm.jsx
+    voting/     VoteButtons.jsx
+    tabs/       FAQTab.jsx, FactCheckPanel.jsx, SentimentDashboard.jsx
+    agents/     AgentBadge.jsx, AgentCard.jsx (🔲)
+    revival/    RevivalArcBar.jsx, ActivityChart.jsx (🔲)
+    community/  CommunityCard.jsx, CommunityHeader.jsx, RulesPanel.jsx
 ```
 
-## What Copilot Should Prioritize
-1. Multi-tenancy: `community_id` filter on every relevant query — non-negotiable
-2. Working demo over complete features
-3. Agent behavior must feel impressive — invest time here
-4. Reddit mechanics must feel familiar — don't reinvent UX
-5. opendata.az citations must appear in agent posts — this is a key differentiator
-6. Graceful degradation when Gemini API is slow
+## Copilot Priorities
+1. `community_id` filter on every relevant DB query — non-negotiable
+2. Only wire ACTIVE feature routers in `main.py`
+3. All three active features must be demoable end-to-end
+4. Reddit mechanics must feel familiar — don't reinvent the UX
+5. Mock fallbacks over broken UI when Gemini is slow
+6. README.md is scored by AI judge — keep it updated
