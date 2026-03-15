@@ -116,7 +116,9 @@ export default function CommunityPage() {
                 ))}
               </ul>
             </div>
-            <Link to={`/r/${slug}/dashboard`} className="block rounded-2xl bg-[#10242b] px-4 py-3 text-center text-sm font-semibold text-white">Open Organizer Dashboard</Link>
+            {user?.id && community?.created_by === user.id && (
+              <Link to={`/r/${slug}/dashboard`} className="block rounded-2xl bg-[#10242b] px-4 py-3 text-center text-sm font-semibold text-white">Open Organizer Dashboard</Link>
+            )}
           </aside>
         </div>
       </main>

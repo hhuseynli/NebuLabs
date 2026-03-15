@@ -1,8 +1,11 @@
 import { Link } from "react-router-dom";
 
 import Navbar from "../components/Navbar";
+import { useAuth } from "../hooks/useAuth";
 
 export default function LandingPage() {
+  const { user } = useAuth();
+
   return (
     <div className="min-h-screen bg-canvas">
       <Navbar />
@@ -16,8 +19,7 @@ export default function LandingPage() {
             Cultify combines Reddit-style discussion with AI copilots for FAQ, sentiment, and fundraising so organizers spend less time firefighting and more time building real community.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link to="/signup" className="btn-primary px-6 py-3 text-sm">Start a Community</Link>
-            <Link to="/login" className="rounded-full border border-[#bad6d3] px-6 py-3 text-sm font-semibold text-[#0c5f57]">Log In</Link>
+            <Link to={user ? "/create-community" : "/login"} className="btn-primary px-6 py-3 text-sm">Start a Community</Link>
           </div>
         </section>
 

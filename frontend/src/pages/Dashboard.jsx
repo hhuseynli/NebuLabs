@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useState } from "react";
 
 import Navbar from "../components/Navbar";
@@ -51,6 +51,12 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-canvas">
       <Navbar />
       <main className="page-enter mx-auto max-w-5xl px-4 py-8">
+        <Link
+          to={`/r/${slug}`}
+          className="inline-block rounded-full border border-[#bad6d3] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#0c5f57]"
+        >
+          Back to Community
+        </Link>
         <h1 className="font-display text-4xl text-[#10242b]">Organizer Dashboard</h1>
         <p className="mt-1 text-sm text-[#45606a]">Track health signals, trigger fundraiser detection, and run demo seed scenarios.</p>
 
