@@ -54,6 +54,7 @@ async function request(path, { method = "GET", token, body } = {}) {
 export const api = {
   signup: (payload) => request("/auth/signup", { method: "POST", body: payload }),
   login: (payload) => request("/auth/login", { method: "POST", body: payload }),
+  listCommunities: (limit = 20, offset = 0) => request(`/communities?limit=${limit}&offset=${offset}`),
   createCommunity: (token, payload) => request("/communities", { method: "POST", token, body: payload }),
   getCommunity: (slug) => request(`/communities/${slug}`),
   joinCommunity: (token, slug) => request(`/communities/${slug}/join`, { method: "POST", token }),

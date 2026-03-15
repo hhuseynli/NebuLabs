@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from db import queries
-from services import gemini_service
+from services import groq_service
 
 PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 
@@ -42,7 +42,11 @@ async def scan_and_create(community_id: str) -> dict:
         "confidence": 0.0,
         "trigger_post_id": None,
     }
-    detected = await gemini_service.generate_json(detect_prompt, fallback=detection_fallback)
+    detected = await groq_service.generate_json(
+        detect_prompt,
+        fallback=detection_fallback,
+        mock_key="fundraiser_detect",
+    )
 
     confidence = float(detected.get("confidence") or 0.0)
     need = str(detected.get("need") or "").strip()
@@ -63,7 +67,11 @@ async def scan_and_create(community_id: str) -> dict:
         "goal_amount": 200,
         "deadline_days": 14,
     }
-    generated = await gemini_service.generate_json(post_prompt, fallback=post_fallback)
+    generated = await groq_service.generate_json(
+        post_prompt,
+        fallback=post_fallback,
+        mock_key="fundraiser_post",
+    )
 
     goal_amount = int(generated.get("goal_amount") or post_fallback["goal_amount"])
     deadline_days = int(generated.get("deadline_days") or post_fallback["deadline_days"])

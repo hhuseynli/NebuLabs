@@ -160,3 +160,52 @@ def test_error_envelope_for_unauthorized_request():
     payload = response.json()
     assert "error" in payload
     assert payload["error"]["code"] == "HTTP_ERROR"
+
+
+def test_list_communities_returns_created_community():
+    reset_store()
+
+    token, _ = signup_user("test6@example.com", "test_user_6")
+    created = create_community(token, name="GardenCircle")
+
+    response = client.get("/api/v1/communities")
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert "communities" in payload
+    assert "total" in payload
+    assert any(item["slug"] == created["slug"] for item in payload["communities"])
+
+
+def test_recompute_human_ratio_is_safe_for_missing_community():
+    reset_store()
+
+    ratio = queries.recompute_human_ratio(community_id="missing-community")
+    assert ratio == 0.0
+
+
+def test_vote_post_works_when_post_missing_from_local_cache():
+    reset_store()
+
+    token, _ = signup_user("test7@example.com", "test_user_7")
+    community = create_community(token, name="CacheFallbackCommunity")
+    created_post = client.post(
+        f"/api/v1/communities/{community['slug']}/posts",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"title": "Cache fallback post", "body": "Body text", "flair": "Test"},
+    ).json()
+
+    post = queries.get_post(created_post["id"])
+    assert post is not None
+
+    # Simulate Supabase mode cache miss where post exists remotely but not in local store.
+    queries.store.posts_by_id.pop(created_post["id"], None)
+    original_get_post = queries.get_post
+    try:
+        queries.get_post = lambda post_id: post if post_id == created_post["id"] else None
+        result = queries.vote_post(post_id=created_post["id"], user_id=community["created_by"], value=1)
+    finally:
+        queries.get_post = original_get_post
+
+    assert result["upvotes"] == 1
+    assert result["user_vote"] == 1

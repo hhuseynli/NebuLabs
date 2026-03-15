@@ -8,6 +8,18 @@ from scheduler import schedule_community
 
 router = APIRouter(prefix="/communities", tags=["communities"])
 
+
+@router.get("")
+async def list_communities(
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+):
+    items = queries.list_communities(limit=limit, offset=offset)
+    return {
+        "communities": items,
+        "total": len(queries.get_all_active_communities()),
+    }
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_community(payload: CommunityCreate, user_id: str = Depends(get_current_user_id)):
     rules = await agent_service.generate_rules(

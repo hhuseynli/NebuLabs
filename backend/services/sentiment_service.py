@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from db import queries
-from services import gemini_service
+from services import groq_service
 
 PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 POSITIVE = {"thanks", "great", "helpful", "love", "awesome", "nice", "works"}
@@ -67,7 +67,7 @@ async def build_report(community_id: str) -> dict:
     payload = fallback
     if context:
         prompt = _read_prompt("sentiment_report.txt").format(context=context)
-        payload = await gemini_service.generate_json(prompt, fallback=fallback)
+        payload = await groq_service.generate_json(prompt, fallback=fallback, mock_key="sentiment")
 
     report = {
         "score": score,

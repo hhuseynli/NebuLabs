@@ -541,9 +541,14 @@ def insert_comment(
     if post_id not in store.comments_by_post:
         store.comments_by_post[post_id] = []
     store.comments_by_post[post_id].append(comment.id)
-    post = store.posts_by_id[post_id]
-    post.comment_count += 1
-    _sb_upsert("posts", _post_to_payload(post))
+    post = store.posts_by_id.get(post_id)
+    if not post:
+        post = get_post(post_id)
+        if post:
+            store.posts_by_id[post.id] = post
+    if post:
+        post.comment_count += 1
+        _sb_upsert("posts", _post_to_payload(post))
     _sb_upsert("comments", _comment_to_payload(comment))
     return comment
 
@@ -580,7 +585,14 @@ def get_comment(comment_id: str) -> Comment | None:
 
 
 def vote_post(*, post_id: str, user_id: str, value: int) -> dict[str, int | None]:
-    post = store.posts_by_id[post_id]
+    post = store.posts_by_id.get(post_id)
+    if not post:
+        post = get_post(post_id)
+        if post:
+            store.posts_by_id[post.id] = post
+    if not post:
+        return {"upvotes": 0, "downvotes": 0, "user_vote": None}
+
     old = store.post_votes[post_id].get(user_id, 0)
 
     if old == 1:
@@ -617,7 +629,14 @@ def vote_post(*, post_id: str, user_id: str, value: int) -> dict[str, int | None
 
 
 def vote_comment(*, comment_id: str, user_id: str, value: int) -> dict[str, int | None]:
-    comment = store.comments_by_id[comment_id]
+    comment = store.comments_by_id.get(comment_id)
+    if not comment:
+        comment = get_comment(comment_id)
+        if comment:
+            store.comments_by_id[comment.id] = comment
+    if not comment:
+        return {"upvotes": 0, "downvotes": 0, "user_vote": None}
+
     old = store.comment_votes[comment_id].get(user_id, 0)
 
     if old == 1:

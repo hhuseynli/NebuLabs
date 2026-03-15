@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from db import queries
-from services import gemini_service
+from services import groq_service
 
 PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 
@@ -48,7 +48,7 @@ async def answer_question(community_id: str, question: str) -> dict:
         return fallback_answer
 
     prompt = _read_prompt("faq_answer.txt").format(question=question, context=context)
-    payload = await gemini_service.generate_json(prompt, fallback=fallback_answer)
+    payload = await groq_service.generate_json(prompt, fallback=fallback_answer, mock_key="faq")
 
     answer = str(payload.get("answer") or fallback_answer["answer"])
     confidence = float(payload.get("confidence") or fallback_answer["confidence"])

@@ -53,7 +53,10 @@ def _load_allowed_origins() -> list[str]:
 
 
 allowed_origins = _load_allowed_origins()
-allow_origin_regex = os.getenv("CORS_ALLOW_ORIGIN_REGEX", r"https://.*\.vercel\.app")
+allow_origin_regex = os.getenv(
+    "CORS_ALLOW_ORIGIN_REGEX",
+    r"^(https://.*\.vercel\.app|http://localhost(:\d+)?|http://127\.0\.0\.1(:\d+)?)$",
+)
 
 app.add_middleware(
     CORSMiddleware,

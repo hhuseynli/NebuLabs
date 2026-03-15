@@ -7,7 +7,7 @@ from pathlib import Path
 from db import queries
 from models.agent import Agent
 from models.community import Community, Post, Rule
-from services import gemini_service, open_data_service
+from services import groq_service, open_data_service
 
 PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 
@@ -28,7 +28,7 @@ async def generate_rules(description: str, ideal_member_description: str) -> lis
             {"title": "Stay on topic", "body": "Keep discussion relevant to the community focus."},
         ]
     }
-    payload = await gemini_service.generate_json(prompt, fallback=fallback)
+    payload = await groq_service.generate_json(prompt, fallback=fallback)
     rules = payload.get("rules", [])
     return [Rule(**r) for r in rules][:6]
 
@@ -84,10 +84,10 @@ async def generate_agents(community: Community, ideal_member_description: str) -
         ]
     }
 
-    payload = await gemini_service.generate_json(
+    payload = await groq_service.generate_json(
         prompt,
         fallback=fallback,
-        model="gemini-2.0-pro",
+        model="llama-3.3-70b-versatile",
     )
 
     agents: list[Agent] = []
@@ -124,7 +124,7 @@ async def generate_spark_post(community: Community, agent: Agent) -> tuple[str, 
         "body": f"According to opendata.az ({dataset_name}), {dataset_stat}. What do you think this means for us?",
         "opendata_citation": dataset_name,
     }
-    payload = await gemini_service.generate_json(prompt, fallback=fallback)
+    payload = await groq_service.generate_json(prompt, fallback=fallback)
     return (
         payload.get("title", fallback["title"]),
         payload.get("body", fallback["body"]),
@@ -142,7 +142,7 @@ async def generate_pull_reply(community: Community, agent: Agent, human_post: Po
         f"Human post title: {human_post.title}. Human post body: {human_post.body}. "
         "Return plain text only."
     )
-    text = await gemini_service.generate_text(prompt)
+    text = await groq_service.generate_text(prompt)
     return text or fallback
 
 
@@ -155,5 +155,5 @@ async def generate_farewell(agent: Agent, community: Community) -> str:
         f"Signing off for now. This community has real momentum and thoughtful voices. "
         f"Thanks for building {community.name} together."
     )
-    text = await gemini_service.generate_text(prompt)
+    text = await groq_service.generate_text(prompt)
     return text or fallback

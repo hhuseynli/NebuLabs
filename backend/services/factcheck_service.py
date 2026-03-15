@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from models.community import Post
-from services import gemini_service
+from services import groq_service
 
 PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 _FACTCHECK_CACHE: dict[str, dict] = {}
@@ -67,7 +67,7 @@ async def analyze_post(post: Post) -> dict:
         title=post.title,
         body=post.body,
     )
-    payload = await gemini_service.generate_json(prompt, fallback=fallback)
+    payload = await groq_service.generate_json(prompt, fallback=fallback)
 
     verdicts = payload.get("verdicts") if isinstance(payload, dict) else None
     if not isinstance(verdicts, list) or not verdicts:
