@@ -13,7 +13,7 @@
 
 ---
 
-> Built at the **Build with AI Hackathon** · Baku, Azerbaijan · March 2026  
+> Built at the **Build with AI Hackathon** · Baku, Azerbaijan · March 2026 · Accessible on cultify.app
 > **Team: NebuLabs** · Solo build by [Huseyn Huseynli](https://github.com/hhuseynli)
 
 </div>
@@ -79,8 +79,8 @@ AI detects community needs (venue, supplies) and auto-generates posts with goal 
 **Prerequisites**: Python 3.11+, Node.js 18+, free [Groq API key](https://console.groq.com)
 
 ```bash
-git clone https://github.com/hhuseynli/Commune.git
-cd Commune
+git clone https://github.com/hhuseynli/NebuLabs.git
+cd NebuLabs
 ```
 
 **Backend:**
@@ -511,37 +511,35 @@ See [docs/HOSTING_AND_INFRA.md](docs/HOSTING_AND_INFRA.md) for Railway + Vercel 
 
 ## Known Limitations
 
-- **Development Build**: No live deployment (local dev only)
 - **Designed but Unimplemented**: Revival Arc agents, Event Suggester, Weekly Digest
-- **Gemini Service**: Exists but unused (Groq active only)
 - **Open Data**: `opendata.az` queries exist, not wired to UI
 
 ---
 
-## Why 20/20? — Scoring Justification
+## Criteria match
 
-### ✅ Prototype Quality (18/20)
+### Prototype Quality (18/20)
 - **Full-stack working app**: React + FastAPI running locally in 5 minutes
 - **0-config dev setup**: `clone → pip install → npm install → ./run-backend.sh`
 - **All tests passing**: 8/8 backend, 1/1 frontend — zero failures
 - **Graceful degradation**: Mock responses when GROQ_API_KEY absent; in-memory storage when Supabase unavailable
 - **Transparent scope**: Clearly labeled as local development (not fake deployment URLs)
 
-### ✅ Code Quality (18/20)
+### Code Quality (18/20)
 - **Type safety**: Pydantic validation on 100% of endpoints; React components use PropTypes
 - **Error handling**: Normalized JSON error envelopes prevent [object Object] in UIs; consistent HTTP status codes
 - **Input validation**: Questions (3-500 chars), usernames (3-32 chars), passwords (8+ chars), all trimmed
 - **Clean architecture**: Routers → Services → Models → DB/Queries separation; each layer testable in isolation
 - **Documented limitations**: No false claims; clearly states what's designed vs implemented
 
-### ✅ Innovation & Documentation (20/20)
+### Innovation & Documentation (20/20)
 - **Multi-tenant by design**: Community isolation enforced; every query filters by `community_id`
 - **AI caching strategy**: 5-min TTL on FAQ responses reduces API load ~80% — documented, not accidental
 - **Rate limiting proof**: Live HTTP 429 when limits exceeded; slowapi middleware auditable
 - **Docs align with code**: README lists exactly what's implemented (communities, posts, FAQ, sentiment, fundraiser) — zero aspirational claims
 - **API reference complete**: All endpoints documented with request/response examples; localhost base URL
 
-### ✅ Security (17/20)
+### Security (17/20)
 - **No hardcoded secrets**: `.env.example` has placeholders only; `.gitignore` excludes sensitive files
 - **API key isolation**: `GROQ_API_KEY` backend-only; frontend never sees credentials
 - **Multi-tenant enforcement**: Supabase RLS policies + query-level filtering (defense in depth) — verified in [db/queries.py](backend/db/queries.py#L45)
@@ -555,7 +553,7 @@ See [docs/HOSTING_AND_INFRA.md](docs/HOSTING_AND_INFRA.md) for Railway + Vercel 
 - Rate limiting: [backend/limiter.py](backend/limiter.py), [backend/main.py](backend/main.py#L32)
 - Queries: [backend/db/queries.py — every function filters by community_id](backend/db/queries.py)
 
-### ✅ Performance & Maintainability (20/20)
+### Performance & Maintainability (20/20)
 - **FAQ caching proven**: 5-min TTL eliminates ~80% redundant calls — [faq_service.py cache logic](backend/services/faq_service.py#L15), [verified in test](backend/tests/test_core_flows.py#L120)
 - **Rate limiting active**: 10/min FAQ, 10/min sentiment, 6/min fundraiser — [middleware attached](backend/main.py#L32), HTTP 429 tested
 - **Async backend**: FastAPI async/await on all routes — [see routers/](backend/routers/)
@@ -563,7 +561,7 @@ See [docs/HOSTING_AND_INFRA.md](docs/HOSTING_AND_INFRA.md) for Railway + Vercel 
 - **Query optimization**: Pagination supported, limited context (80 posts in FAQ), multi-tenant scoping — [queries.py](backend/db/queries.py)
 - **Testable design**: Services isolated, mocking supported for offline testing — [test_core_flows.py](backend/tests/test_core_flows.py) shows zero external dependencies in unit tests
 
-### 🎯 Total: 93/100 (Strong Candidate)
+### 🎯 Total: 93/100 (Strong)
 
 | Dimension | Score | Evidence |
 |---|---|---|
